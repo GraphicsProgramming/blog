@@ -1,6 +1,6 @@
-title = "FrogBlog"
+title = "Frog Blog"
 description = "The Froggening"
-base_url = "https://blog.graphics-programming.org"
+base_url = "https://graphicsprogramming.github.io/blog/"
 
 compile_sass = true
 build_search_index = true 
