@@ -1,0 +1,24 @@
+title = "FrogBlog"
+description = "The Froggening"
+base_url = "https://blog.graphics-programming.org"
+
+compile_sass = true
+build_search_index = true 
+
+[markdown]
+highlight_code = true
+
+[search]
+include_title = true
+include_description = true
+include_date = true
+include_path = false
+include_content = true
+truncate_content_length = 256
+index_format = "elasticlunr_javascript"
+
+taxonomies = [
+    {name = "tags"},
+    {name = "categories"},
+    {name = "authors"},
+]

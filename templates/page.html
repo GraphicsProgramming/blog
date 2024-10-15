@@ -1,0 +1,24 @@
+{% extends "index.html" %}
+
+{% block content %}
+<main>
+	<article class="page-article">
+		<h1>{{ page.title }}</h1>
+		<p class="articleDate">{{ page.date }}</p>
+		{{ page.content | safe }}
+		{% if page.extra.references %}
+		{# Add the bibliography #}
+		{% set references = load_data(path=page.colocated_path ~ page.extra.references) %}
+		<h2>References</h2>
+		<dl class="references">
+		{% for entry in references.bibliographies %}
+		{{ ref(entry=entry, idx=loop.index) }}
+		{% endfor %}
+		</dl>
+		{% endif %}
+	</article>
+	<div class="nav-page">
+		<a class="link-page" href="#top">Back to top</a>
+	</div>
+</main>
+{% endblock %}
