@@ -85,8 +85,8 @@ struct Args
 #ifdef __cplusplus // Simple constructor to initialize with safe defaults
 	Args() : dimensions(0, 0), samples(1) {}
 #endif
-	FVOG_IVEC2 dimensions;
-	FVOG_UINT32 samples;
+	FROG_IVEC2 dimensions;
+	FROG_UINT32 samples;
 };
 
 #ifndef __cplusplus // GLSL-only section
