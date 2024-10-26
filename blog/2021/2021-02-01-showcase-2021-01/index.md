@@ -9,10 +9,9 @@ image: 'https://imgur.com/PrWFTFO.png'
 ---
 
 January 2021 show case
-![](https://imgur.com/PrWFTFO.png)
-<!-- truncate -->
 
 ![](https://imgur.com/LQUUJQw.png)
+<!-- truncate -->
 <center>Created by @snurf#1314</center>
 
 <hr />

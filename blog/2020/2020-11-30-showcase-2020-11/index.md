@@ -5,13 +5,13 @@ description: 'Graphics Programming Discord Server showcase November 2020'
 date: '2020-11-30'
 authors: []
 tags: ['showcase', 'showcase-2020']
+image: 'https://imgur.com/jLL020P.jpg'
 ---
 
 November 2020 showcase
-![](https://imgur.com/7Dqp5bE.jpg)
-<!-- truncate -->
 
 ![](https://imgur.com/jLL020P.jpg)
+<!-- truncate -->
 <center>Created by @Lain#1999#3330</center>
 
 <hr/>

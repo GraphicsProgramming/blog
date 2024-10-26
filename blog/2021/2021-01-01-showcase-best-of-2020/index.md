@@ -5,14 +5,13 @@ description: 'Graphics Programming Discord Server Best of 2020 showcase'
 date: '2021-01-01'
 authors: []
 tags: ['showcase', 'showcase-2020']
+image: 'https://i.imgur.com/wCchteK.png'
 ---
 
 Best of 2020 Community Creation Showcase
-![](https://i.imgur.com/Jken5mH.png)
-
-<!-- truncate -->
 
 ![](https://i.imgur.com/wCchteK.png)
+<!-- truncate -->
 <center>Created by @loicvdb#9391</center>
 
 <hr />

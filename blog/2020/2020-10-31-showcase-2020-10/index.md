@@ -5,13 +5,13 @@ description: 'Graphics Programming Discord Server showcase October 2020'
 date: '2020-10-31'
 authors: ['jaker']
 tags: ['showcase', 'showcase-2020']
+image: 'https://imgur.com/OAgojJD.jpg'
 ---
 
 October 2020 showcase
-![](https://imgur.com/PbW17p5.jpg)
-<!-- truncate -->
 
 ![](https://imgur.com/OAgojJD.jpg)
+<!-- truncate -->
 <center>Created by @Jaker#2630</center>
 
 <hr />
