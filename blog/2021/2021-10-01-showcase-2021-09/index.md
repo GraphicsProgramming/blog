@@ -16,7 +16,6 @@ September 2021 show case
 
 <hr />
 
-
 <div class="aspect-ratio-16-9">
             <iframe width="560" height="315" src="https://www.youtube.com/embed/VLA3IBm8BPk" title="YouTube video player" frameborder="0" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
 </div>
