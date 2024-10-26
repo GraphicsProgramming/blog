@@ -90,6 +90,10 @@ const config: Config = {
               label: 'YouTube',
               href: 'https://www.youtube.com/@graphicsprogramming9074',
             },
+            {
+              label: 'Twitter',
+              href: 'https://x.com/i/communities/1500963350825472000'
+            }
           ],
         },
         {
