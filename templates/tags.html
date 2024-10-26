@@ -1,8 +1,0 @@
-{% if post.taxonomies.tags %}
-<p>
-
-{% for tag in post.taxonomies.tags %}
-    <a href="{{ tag.permalink }}">{{ tag.name }}</a>
-{% endfor %}
-</p>
-{% endif %}

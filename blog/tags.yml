@@ -1,0 +1,10 @@
+opengl:
+  label: opengl
+  permalink: /opengl
+  description: Open Graphics Library
+
+glsl:
+  label: Hello
+  permalink: /glsl
+  description: OpenGL Shading Language
+
