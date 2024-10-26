@@ -2,7 +2,7 @@
 title: 'July 2021 showcase'
 slug: 'showcase-2021-07'
 description: 'Graphics Programming Showcase July 2021'
-date: '2021-07-31'
+date: '2021-08-01'
 authors: []
 tags: ['showcase', 'showcase-2021']
 image: 'https://imgur.com/X04NpGA.png'

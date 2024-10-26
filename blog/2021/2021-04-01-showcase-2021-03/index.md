@@ -2,7 +2,7 @@
 title: 'March 2021 showcase'
 slug: 'showcase-2021-03'
 description: 'Graphics Programming Showcase March 2021'
-date: '2021-03-31'
+date: '2021-04-01'
 authors: []
 tags: ['showcase', 'showcase-2021']
 image: 'https://imgur.com/DpcydEE.png'

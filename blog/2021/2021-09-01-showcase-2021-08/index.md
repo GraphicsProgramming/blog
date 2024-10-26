@@ -2,7 +2,7 @@
 title: 'August 2021 showcase'
 slug: 'showcase-2021-08'
 description: 'Graphics Programming Showcase August 2021'
-date: '2021-08-31'
+date: '2021-09-01'
 authors: []
 tags: ['showcase', 'showcase-2021']
 image: 'https://imgur.com/Ub3Rt0X.jpg'
