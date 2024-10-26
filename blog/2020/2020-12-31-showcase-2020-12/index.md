@@ -1,7 +1,7 @@
 ---
-title: "December 2020 showcase"
-slug: "showcase-2020-12"
-description: "Graphics Programming Discord Server showcase December 2020"
+title: 'December 2020 showcase'
+slug: 'showcase-2020-12'
+description: 'Graphics Programming Showcase December 2020'
 date: '2020-12-31'
 authors: []
 tags: ['showcase', 'showcase-2020']

@@ -1,7 +1,7 @@
 ---
 title: 'Best of 2020 showcase'
 slug: 'showcase-best-of-2020'
-description: 'Graphics Programming Discord Server Best of 2020 showcase'
+description: 'Graphics Programming Showcase Best of 2021'
 date: '2021-01-01'
 authors: []
 tags: ['showcase', 'showcase-2020']

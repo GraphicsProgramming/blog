@@ -1,10 +1,10 @@
 ---
-title: "GLSL Development Made Shrimple"
-slug: glsl-development-made-shrimple
-description: "Tips and tools to make GLSL development easier"
-date: "2024-10-17"
-authors: ["jaker"]
-tags: ["glsl", "opengl", "vulkan", "beginner", "visual studio", "visual studio code", "article"]
+title: 'GLSL Development Made Shrimple'
+slug: 'glsl-development-made-shrimple'
+description: 'Tips and tools to make GLSL development easier'
+date: '2024-10-17'
+authors: ['jaker']
+tags: ['glsl', 'opengl', 'vulkan', 'beginner', 'visual studio', 'visual studio code', 'article']
 ---
 
 # GLSL Linters
