@@ -4,10 +4,11 @@ slug: 'showcase-best-of-2020'
 description: 'Graphics Programming Discord Server Best of 2020 showcase'
 date: '2021-01-01'
 authors: []
-tags: ['showcase', 'showcase2020']
+tags: ['showcase', 'showcase-2020']
 ---
 
 Best of 2020 Community Creation Showcase
+<!-- truncate -->
 
 ![](https://i.imgur.com/wCchteK.png)
 <center>Created by @loicvdb#9391</center>

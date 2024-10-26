@@ -4,7 +4,7 @@ slug: 'showcase-2020-11'
 description: 'Graphics Programming Discord Server showcase November 2020'
 date: '2020-11-30'
 authors: []
-tags: ['showcase', 'showcase2020']
+tags: ['showcase', 'showcase-2020']
 ---
 
 November 2020 showcase
