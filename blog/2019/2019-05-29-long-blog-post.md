@@ -1,8 +1,9 @@
 ---
 slug: long-blog-post
 title: Long Blog Post
-authors: deccer
-tags: [hello, help]
+date: '2019-05-29'
+authors: ['deccer']
+tags: [help]
 ---
 
 This is the summary of a very long blog post,

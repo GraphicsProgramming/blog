@@ -1,8 +1,9 @@
 ---
 slug: first-blog-post
 title: First Blog Post
-authors: [jaker]
-tags: [hello, help]
+date: '2019-05-28'
+authors: ['jaker']
+tags: [help]
 ---
 
 Lorem ipsum dolor sit amet...
