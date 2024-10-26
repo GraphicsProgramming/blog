@@ -19,7 +19,7 @@ Best of 2020 Community Creation Showcase
 
 <hr />
 
-![](https://i.imgur.com/S20xWqV.mp4)
+<video src="https://i.imgur.com/S20xWqV.mp4"></video>
 <center>Created by @eppodepeppo#1406</center>
 
 <hr />
@@ -34,7 +34,7 @@ Best of 2020 Community Creation Showcase
 
 <hr />
 
-![](https://i.imgur.com/oFdTeoH.mp4)
+<video src="https://i.imgur.com/oFdTeoH.mp4"></video>
 <center>Created by@landon.vfx#0001</center>
 
 <hr />
