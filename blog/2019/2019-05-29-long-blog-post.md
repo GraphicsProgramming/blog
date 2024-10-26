@@ -2,7 +2,7 @@
 slug: long-blog-post
 title: Long Blog Post
 authors: deccer
-tags: [hello, docusaurus]
+tags: [hello, help]
 ---
 
 This is the summary of a very long blog post,

@@ -3,21 +3,19 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'Forg Blog',
-  tagline: 'Frogs and Forgs',
+  title: 'Graphics Programming Discord Server Blog',
+  tagline: 'Articles, guides, tips and tricks from and for frogs and forgis of the graphics programming discord',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
   url: 'https://graphicsprogramming.github.io/',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  // This might cause trouble during local development, switch to '/' then
   baseUrl: '/blog/',
 
   // GitHub pages deployment config.
-  // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'GraphicsProgramming', // Usually your GitHub org/user name.
-  projectName: 'blog', // Usually your repo name.
+  organizationName: 'GraphicsProgramming',
+  projectName: 'blog',
   deploymentBranch: 'gh-pages',
   trailingSlash: false,
 
@@ -43,7 +41,6 @@ const config: Config = {
             type: ['rss', 'atom'],
             xslt: true,
           },
-          // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
             'https://github.com/GraphicsProgramming/',
