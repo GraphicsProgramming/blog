@@ -8,6 +8,8 @@ tags: ['showcase', 'showcase-2020']
 ---
 
 Best of 2020 Community Creation Showcase
+![](https://i.imgur.com/Jken5mH.png)
+
 <!-- truncate -->
 
 ![](https://i.imgur.com/wCchteK.png)

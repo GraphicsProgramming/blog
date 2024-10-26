@@ -8,6 +8,7 @@ tags: ['showcase', 'showcase-2020']
 ---
 
 October 2020 showcase
+![](https://imgur.com/PbW17p5.jpg)
 <!-- truncate -->
 
 ![](https://imgur.com/OAgojJD.jpg)
