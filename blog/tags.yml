@@ -4,7 +4,7 @@ opengl:
   description: Open Graphics Library
 
 glsl:
-  label: Hello
+  label: glsl
   permalink: /glsl
   description: OpenGL Shading Language
 
