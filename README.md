@@ -39,6 +39,10 @@ The Graphics Programming Blog - A collection of technical articles, project post
 
   In this case you can also see how jaker put his article into `2024/2024-10-17-glsl-development-made-shrimple/index.md`
 
+- Third important bit is to place a truncate line in your article, so that the generator doesnt take the whole post as the post preview :)
+
+  Use a `<!-- truncate -->` comment to limit blog post size in the list view.
+
 - Consider adding your author tag to blog/authors.yml. Simply check how jaker/deccer were added and massage yours accordingly. The key of each entry is also the value which goes into the `authors: ["author_here", "coauthor"]` thing.
 
 - Try it out locally:
