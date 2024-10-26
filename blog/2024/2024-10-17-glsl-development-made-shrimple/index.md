@@ -11,6 +11,8 @@ tags: ["glsl", "opengl", "vulkan", "beginner", "visual studio", "visual studio c
 
 Life is so much better when you get instant feedback on the errors you make.
 
+<!-- truncate -->
+
 ## Visual Studio Code
 - [GLSL Lint](https://marketplace.visualstudio.com/items?itemName=dtoplak.vscode-glsllint): provides syntax highlighting and error detection.
 	- Requires glslangValidator from [the Vulkan SDK](https://www.lunarg.com/vulkan-sdk/) or compiled yourself. The path to the executable must be supplied in the extension settings.
