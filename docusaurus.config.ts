@@ -48,11 +48,15 @@ const config: Config = {
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
           onUntruncatedBlogPosts: 'warn',
-          routeBasePath: '/'
+          routeBasePath: '/',
+          blogSidebarCount: 'ALL',
         },
         theme: {
           customCss: './src/css/custom.css',
         },
+        sitemap: {
+          changefreq: 'always'
+        }
       } satisfies Preset.Options,
     ],
   ],
