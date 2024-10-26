@@ -34,5 +34,5 @@ August 2021 show case
 
 <hr />
 
-![](https://imgur.com/5jrf5Y9.mp4)
+<video src="https://imgur.com/5jrf5Y9.mp4"></video>
 <center>Created by @rickomax#3663</center>
