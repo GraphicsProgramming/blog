@@ -16,3 +16,11 @@ deccer:
   socials:
     github: deccer
 
+jaked:
+  name: Jake S. Del Mastro
+  title: Some Kind of Frog
+  url: https://github.com/pgrAm
+  image_url: https://avatars.githubusercontent.com/u/3148945?v=4
+  page: true
+  socials:
+    github: pgrAm
