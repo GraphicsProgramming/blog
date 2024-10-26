@@ -1,13 +1,13 @@
 ---
 title: "GP-Direct 2024 Project Showcase video"
-slug: gp-direct-showcase
+slug: gp-direct-showcase-2024
 description: "Bespoke technology for graphics and games created by members of our amazing community"
 date: "2024-08-19"
 authors: ["jaked"]
 tags: ["showcase", "showcase-2024", "gp-direct"]
 ---
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/E07I1VRYlcg?si=GOPwwSOSyFbBNgLz" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/E07I1VRYlcg?si=GOPwwSOSyFbBNgLz" title="YouTube video player" frameborder="0" allow="encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 <!-- truncate -->
 
