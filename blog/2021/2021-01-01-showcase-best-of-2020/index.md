@@ -2,12 +2,15 @@
 title: 'Best of 2020 showcase'
 slug: 'showcase-best-of-2020'
 description: 'Graphics Programming Discord Server Best of 2020 showcase'
-date: '2020-12-31'
+date: '2021-01-01'
 authors: []
-tags: ['showcase', 'showcase2020']
+tags: ['showcase', 'showcase-2020']
 ---
 
 Best of 2020 Community Creation Showcase
+![](https://i.imgur.com/Jken5mH.png)
+
+<!-- truncate -->
 
 ![](https://i.imgur.com/wCchteK.png)
 <center>Created by @loicvdb#9391</center>
@@ -19,7 +22,7 @@ Best of 2020 Community Creation Showcase
 
 <hr />
 
-![](https://i.imgur.com/S20xWqV.mp4)
+<video src="https://i.imgur.com/S20xWqV.mp4"></video>
 <center>Created by @eppodepeppo#1406</center>
 
 <hr />
@@ -34,7 +37,7 @@ Best of 2020 Community Creation Showcase
 
 <hr />
 
-![](https://i.imgur.com/oFdTeoH.mp4)
+<video src="https://i.imgur.com/oFdTeoH.mp4"></video>
 <center>Created by@landon.vfx#0001</center>
 
 <hr />

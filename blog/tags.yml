@@ -8,3 +8,8 @@ glsl:
   permalink: /glsl
   description: OpenGL Shading Language
 
+showcase:
+  label: showcase
+  permalink: /showcase
+  description: Graphics Programming Discord Server Showcase
+
