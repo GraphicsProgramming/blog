@@ -28,12 +28,13 @@ The Graphics Programming Blog - A collection of technical articles, project post
 
   ```yaml
   ---
-  title: "GLSL Development Made Shrimple"
-  slug: glsl-development-made-shrimple
-  description: "Tips and tools to make GLSL development easier"
-  date: "2024-10-17"
-  authors: ["jaker"]
-  tags: ["glsl", "opengl", "vulkan", "beginner", "visual studio", "visual studio code", "article"]
+  title: 'GLSL Development Made Shrimple'
+  slug: 'glsl-development-made-shrimple'
+  description: 'Tips and tools to make GLSL development easier'
+  date: '2024-10-17'
+  authors: ['jaker']
+  tags: ['glsl', 'opengl', 'vulkan', 'beginner', 'visual studio', 'visual studio code', 'article']
+  image: 'url to image which will be used when you paste the link to the article into social media apps like twitter or discord'
   ---
   ```
 

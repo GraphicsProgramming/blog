@@ -1,7 +1,7 @@
 ---
-title: "January 2021 showcase"
-slug: "showcase-2021-01"
-description: "Graphics Programming Discord Server showcase January 2021"
+title: 'January 2021 showcase'
+slug: 'showcase-2021-01'
+description: 'Graphics Programming Showcase January 2021'
 date: '2021-02-01'
 authors: []
 tags: ['showcase', 'showcase-2021']
