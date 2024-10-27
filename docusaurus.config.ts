@@ -3,7 +3,7 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'Graphics Programming Discord Server Blog',
+  title: 'Graphics Programming Discord Server',
   tagline: 'Articles, guides, tips and tricks from and for frogs and forgis of the graphics programming discord',
   favicon: 'img/favicon.ico',
 
