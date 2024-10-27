@@ -7,7 +7,7 @@ authors: ["jaked"]
 tags: ["showcase", "showcase-2024", "gp-direct"]
 ---
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/E07I1VRYlcg?si=GOPwwSOSyFbBNgLz" title="YouTube video player" frameborder="0" allow="encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/E07I1VRYlcg?si=GOPwwSOSyFbBNgLz" title="YouTube" frameborder="0" allow="encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 <!-- truncate -->
 
