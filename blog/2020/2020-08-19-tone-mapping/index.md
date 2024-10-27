@@ -9,8 +9,9 @@ tags: ['technique', 'tone-mapping', 'aces', 'reinhard', 'article']
 
 # Tone Mapping
 
-All code for this guide is in C++ and the full source code can be found at https://github.com/graphicsprogramming/resources/tree/gh-pages/tonemapping. For the `vec3` class, I'm using a slightly modified of the one found in Shirley's 'Ray Tracing in One Weekend' book.
+All code for this guide is in C++ and the full source code can be found [here](https://github.com/GraphicsProgramming/resources/tree/gh-pages/resources/tonemapping).
 <!-- truncate -->
+For the `vec3` class, I'm using a slightly modified of the one found in Shirley's 'Ray Tracing in One Weekend' book.
 
 ## What is tone mapping?
 
