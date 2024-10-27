@@ -4,10 +4,10 @@ The Graphics Programming Blog - A collection of technical articles, project post
 
 ## Things which work
 - You can create articles and project posts
+- LaTeX/KaTeX works
 
 ## Things which don't work yet
 - Search
-- Show case is not thought through yet.
 
 ## How to get started
 - Fork the repo
