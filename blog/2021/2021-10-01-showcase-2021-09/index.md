@@ -16,16 +16,12 @@ September 2021 show case
 
 <hr />
 
-<div class="aspect-ratio-16-9">
-            <iframe width="560" height="315" src="https://www.youtube.com/embed/VLA3IBm8BPk" title="YouTube video player" frameborder="0" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
-</div>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/VLA3IBm8BPk" title="YouTube" frameborder="0" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
 <center>Created by @Terry#2237</center>
 
 <hr />
 
-<div class="aspect-ratio-16-9">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/-l_1QewDuvg" title="YouTube video player" frameborder="0" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
-</div>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/-l_1QewDuvg" title="YouTube" frameborder="0" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
 <center>Created by @rk_97#5100</center>
 
 <hr />

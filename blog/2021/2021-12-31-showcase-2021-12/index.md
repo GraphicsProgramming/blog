@@ -21,9 +21,7 @@ December 2021 show case
 
 <hr />
 
-<div class="aspect-ratio-16-9">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/GrEWl8npL9Y" title="YouTube video player" frameborder="0" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
-</div>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/GrEWl8npL9Y" title="YouTube" frameborder="0" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
 <center>Created by @rikardL#2938</center>
 
 <br />
