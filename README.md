@@ -38,7 +38,9 @@ The Graphics Programming Blog - A collection of technical articles, project post
   ---
   ```
 
-  In this case you can also see how jaker put his article into `2024/2024-10-17-glsl-development-made-shrimple/index.md`
+  In this case you can also see how jaker put his article into `2024/2024-10-17-glsl-development-made-shrimple/index.md`.
+
+  Pay attention to the `slug` value and how its the same value (sans the date) as the folder where you place index.md.
 
 - Third important bit is to place a truncate line in your article, so that the generator doesnt take the whole post as the post preview :)
 

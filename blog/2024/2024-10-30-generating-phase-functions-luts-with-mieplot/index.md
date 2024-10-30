@@ -1,6 +1,7 @@
 ---
 title: 'Generating Phase Function LUTs with MiePlot'
 description: 'MiePlot tutorial for graphics programmers who just want a darn LUT for their cool volume renderer.'
+slug: 'generating-phase-functions-luts-with-mieplot'
 date: '2024-10-30'
 authors: ['jaker']
 tags: ['intermediate', 'techniques', 'theory', 'fog', 'mieplot', 'volumetric']
