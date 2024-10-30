@@ -161,7 +161,7 @@ glm::vec3 MapToUnitSphere(glm::vec2 uv)
 
 I suggest testing your normalization by plugging in a known-good analytical phase function like Henyey-Greenstein or Schlick's. These integrate to 1 and so don't require hacky normalization:
 
-```cpp
+```glsl
 float phaseHG(float g, float cosTheta)
 {
     return (1.0 - g * g) / (4.0 * M_PI * pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5));
@@ -180,7 +180,7 @@ After normalizing the data, we can put it into a 1D texture.
 
 We only need to keep in mind that the our LUT-based phase function is parameterized by theta (unlike HG and Schlick above). Here's how you might access it in GLSL:
 
-```c
+```glsl
 layout(binding = 0) uniform sampler1D s_phaseFunction;
 
 vec3 phaseLut(float cosTheta)
