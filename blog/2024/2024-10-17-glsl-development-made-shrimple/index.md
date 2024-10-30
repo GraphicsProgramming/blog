@@ -61,7 +61,7 @@ Writing the same structure definitions for buffers in both C or C++ and GLSL is 
 is to abuse macros. It also requires shading language includes.
 
 The first step is to write a "shared header" of common definitions that can be understood by both GLSL and C++. This file is split into sections that are only compiled in one language or the other:
-```c
+```glsl
 #ifndef COMMON_H
 #define COMMON_H
 
@@ -83,7 +83,7 @@ The first step is to write a "shared header" of common definitions that can be u
 ```
 
 The second step is to put structure definitions in a file that both languages understand. This can be a separate header, or in the body of the shader itself. For an example of the latter:
-```c
+```glsl
 // Common section
 #include "Common.h"
 
