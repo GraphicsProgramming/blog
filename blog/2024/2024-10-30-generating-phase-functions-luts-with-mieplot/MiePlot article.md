@@ -4,6 +4,7 @@ description: 'MiePlot tutorial for graphics programmers who just want a darn LUT
 date: '2024-10-30'
 authors: ['jaker']
 tags: ['intermediate', 'techniques', 'theory', 'fog', 'mieplot', 'volumetric']
+image: 'render_fog_2.png'
 ---
 
 In computer graphics, Mie theory describes the interactions between light and large (relative to the wavelength of light) particles in a medium. Simulating it is crucial in rendering convincing volumetric effects like fog, clouds, and smoke.
