@@ -83,7 +83,7 @@ const config: Config = {
       title: 'Graphics Programming',
       logo: {
         alt: 'Graphics Programming',
-        src: 'https://cdn.discordapp.com/attachments/1181012862177644564/1181042141112320110/gp-discord-logo.gif?ex=671e3df5&is=671cec75&hm=2be3df1b8853374d7534d9608d98e86dd79f67f55ca68104e6cd7256d9e24a40&',
+        src: 'img/gp-discord-logo.gif',
       },
       items: [
         {
