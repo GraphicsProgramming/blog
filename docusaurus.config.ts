@@ -46,6 +46,8 @@ const config: Config = {
       {
         docs: false,
         blog: {
+          showLastUpdateTime: true,
+          showLastUpdateAuthor: true,
           showReadingTime: true,
           feedOptions: {
             type: ['rss', 'atom'],
