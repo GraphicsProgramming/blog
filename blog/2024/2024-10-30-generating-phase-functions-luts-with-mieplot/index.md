@@ -103,7 +103,9 @@ while (file.peek() != EOF)
 ```
 
 Unfortunately, we aren't done yet. MiePlot's documentation states that the phase function is normalized to 4pi, so that integrating it as such will give the following result:
+
 $$\frac{1}{4\pi} \int_{0}^{2\pi} \int_{0}^{\pi} f(\theta, \phi) \sin(\theta) \, d\theta \, d\phi = 1$$
+
 However, when we numerically perform this integration ourselves, we get a very tiny result (around 1e-8). I don't know if this is caused by an error on my or MiePlot's part, but I do know a  cheeky way to fix it.
 
 ![A sign that says "Warning: Engineering disguised as math](engineering_cropped_small.png)
