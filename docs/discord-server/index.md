@@ -2,6 +2,7 @@
 title: 'Discord Server'
 description: 'All about our discord server community'
 slug: 'discord-server'
+image: 'https://cdn.discordapp.com/splashes/318590007881236480/d0e3bd057a0b2cf557c3e120c1a277ae.jpg?size=480'
 ---
 
 We are a diverse community of graphics programming enthusiasts from humble hobbyists to full-on professionals, with all levels of mastery of Vulkan, Direct3D, OpenGL, etc! 
