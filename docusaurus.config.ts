@@ -95,6 +95,12 @@ const config: Config = {
           position: 'left',
           label: 'Discord Server',
         },
+        {
+          type: 'docSidebar',
+          sidebarId: 'communityProjects',
+          position: 'left',
+          label: 'Community Projects'
+        }
       ],
     },
     footer: {
