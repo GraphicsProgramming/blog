@@ -80,7 +80,7 @@ Potentially you might not have set the vertex count variable and that contains a
 - fucked uvs
 - you might be sampling from a corner of your texture where its actually black, check uvs
 
-### Your Tringle is black
+### Your Triangle is black
 
 - smells like your vao is fucked. make sure you setup the attributes (and stride when binding le vbo using DSA)
 - fucked uvs?
