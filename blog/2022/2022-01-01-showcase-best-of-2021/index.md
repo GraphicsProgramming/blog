@@ -1,5 +1,5 @@
 ---
-title: 'Best of 2021 showcase'
+title: 'Showcase Best of 2021'
 slug: 'showcase-best-of-2021'
 description: 'Graphics Programming Showcase Best of 2021'
 date: '2022-01-01'
