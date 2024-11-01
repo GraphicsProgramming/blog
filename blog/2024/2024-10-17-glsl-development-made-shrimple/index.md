@@ -27,7 +27,7 @@ My only requirement for a GLSL linter is that it prevents me from being surprise
   - Compiler flags are supplied as a list in the extension settings.
     - I use `-C` (show multiple errors), `--glsl-version 460` (automatically sets the shader `#version`), and `--P #extension GL_GOOGLE_include_directive` (so I don't have to write that in every file).
     - OpenGL users should add `--target-env opengl` for it to use OpenGL semantics.
-    - Each "part" of an argument separated by a space needs to be provided as a separate item of the list:
+    - Each "part" of an argument separated by a space needs to be provided as a separate item of the list.
   - File extensions can be associated with specific shader stages in the extension settings. By default, it will detect common file extensions like .vert, .frag, and .comp. It also understands .frag.glsl, etc. automatically.
   - Supports my convoluted `#include` hierarchies.
 - [Error Lens](https://marketplace.visualstudio.com/items?itemName=usernamehw.errorlens): makes errors easier to read. Not specifically related to GLSL, but still useful to have.
@@ -59,7 +59,7 @@ Here is an example of arguments provided to GLSL Lint:
 
 OpenGL GLSL doesn't support `#include` (GL_ARB_shading_language_include barely counts), so we must find an external way to support it. There are a few viable ways to gain support for `#include` in your shaders if you're using OpenGL, in increasing effort:
 
-- [stb_include.h] provides a simple interface for expanding includes in shader sources without evaluating other preprocessor directives (which means it expands `#include` directives in inactive preprocessor blocks).
+- [stb_include.h](https://github.com/nothings/stb/blob/master/stb_include.h) provides a simple interface for expanding includes in shader sources without evaluating other preprocessor directives (which means it expands `#include` directives in inactive preprocessor blocks).
   - [My fork of it](https://github.com/nothings/stb/pull/1336) fixes the const-incorrect API, which can annoyingly require `const_cast` to use in C++.
   - [My super secret forbidden fork of it](https://github.com/JuanDiegoMontoya/Frogfood/blob/main/vendor/stb_include.h) fixes nested includes and some other minor issues, but introduces a C++17 standard library include (`<filesystem>`) for implementer convenience.
 - [ARB_shading_language_include](https://registry.khronos.org/OpenGL/extensions/ARB/ARB_shading_language_include.txt) extends OpenGL by letting the user define a virtual filesystem that will be searched when include directives are found.
