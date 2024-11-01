@@ -44,7 +44,10 @@ const config: Config = {
     [
       'classic',
       {
-        docs: false,
+        docs: {
+          routeBasePath: 'docs',
+          sidebarPath: './sidebars.ts',
+        },
         blog: {
           showReadingTime: true,
           feedOptions: {
@@ -87,11 +90,11 @@ const config: Config = {
       },
       items: [
         {
-          href: 'https://github.com/graphicsprogramming',
-          position: 'right',
-          className: 'header--github-link',
-          "aria-label": "GitHub Repository"
-        }
+          type: 'docSidebar',
+          sidebarId: 'discordServer',
+          position: 'left',
+          label: 'Discord Server',
+        },
       ],
     },
     footer: {
