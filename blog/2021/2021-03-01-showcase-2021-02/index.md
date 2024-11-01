@@ -1,5 +1,5 @@
 ---
-title: 'Februrary 2021 showcase'
+title: 'Showcase Februrary 2021'
 slug: 'showcase-2021-02'
 description: 'Graphics Programming Showcase February 2021'
 date: '2021-03-01'
@@ -8,7 +8,7 @@ tags: ['showcase', 'showcase-2021']
 image: 'https://imgur.com/q0AIPQk.png'
 ---
 
-February 2021 show case
+February 2021
 
 ![](https://imgur.com/O8QWC6I.png)
 <!-- truncate -->
