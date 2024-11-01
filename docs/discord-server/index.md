@@ -10,23 +10,26 @@ We love answering interesting questions and trying to solve graphics-related pro
 
 ## Rules
 
-- Be nice and respectful.
-- When you ask a question:
-  a. Don't ask if you can ask, just ask (in the appropriate channel)
-  b. Debug the issue yourself first to the best of your ability, using renderdoc if possible: https://renderdoc.org/docs/getting_started/quick_start.html
-  c. Explain your issue in detail. “it doesn’t work” is not a sufficient problem description
-  d. Explain what you've tried already
-  e. Support your question with code/screenshots/renderdoc captures if possible
-  f. Simplify code to only what’s relevant to your question, don't post screenshots of code, remember you can format code on discord
-  g. Be patient and don't crosspost if you don't get an immediate response
-  h. Don’t ask for help with LLM output (e.g. ChatGPT)
-- Don't ask us to do your homework for you.
-- Don't send links using URL shorteners.
-- Any form of advertisement must be cleared with moderators first. This includes invite links to other discord servers. Crypto, NFT and web3 posts are never allowed.
-- Do not discuss or distribute illegal content (even if leaked by a third party), hacking or cheating technologies, no discussing modifying existing games (games with actual official mod support are allowed), or post gory or otherwise disturbing imagery.
-- Keep discussions on-topic
-- No discussion of politics, religion, etc. in any channels
-- No usernames/nicknames that are website links or allude to website links
+* Be nice and respectful.
+* When you ask a question:
+  * a. Don't ask if you can ask, just ask (in the appropriate channel)
+  * b. Debug the issue yourself first to the best of your ability. Use the actual debugger of your editor/IDE.
+    * [RenderDoc](https://renderdoc.org/docs/getting_started/quick_start.html)
+    * [PIX](https://devblogs.microsoft.com/pix/introduction/)
+    * [apitrace](https://github.com/apitrace/apitrace/blob/master/docs/USAGE.markdown)
+  * c. Explain your issue in detail. “it doesn’t work” is not a sufficient problem description
+  * d. Explain what you've tried already
+  * e. Support your question with code/screenshots/renderdoc captures if possible
+  * f. Simplify code to only what’s relevant to your question, don't post screenshots of code, remember you can format code on discord
+  * g. Be patient and don't crosspost if you don't get an immediate response
+  * h. Don’t ask for help with LLM output (e.g. ChatGPT)
+* Don't ask us to do your homework for you.
+* Don't send links using URL shorteners.
+* Any form of advertisement must be cleared with moderators first. This includes invite links to other discord servers. Crypto, NFT and web3 posts are never allowed.
+* Do not discuss or distribute illegal content (even if leaked by a third party), hacking or cheating technologies, no discussing modifying existing games (games with actual official mod support are allowed), or post gory or otherwise disturbing imagery.
+* Keep discussions on-topic
+* No discussion of politics, religion, etc. in any channels
+* No usernames/nicknames that are website links or allude to website links
 
 ## Infractions
 
