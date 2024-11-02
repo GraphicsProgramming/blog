@@ -23,13 +23,15 @@ Setup `glDebugMessageCallback` see [here](https://deccer.github.io/OpenGL-Gettin
 
 If you use `glGetError` with or without macros like `GLCALL` or `GLCHECK` or rolled your own, get rid of it. `glDebugMessageCallback` will replace those. There is a high chance that you used it incorrectly anyway because you copy pasted it from some questionable source. 
 
-Make sure you check that shader compilation _and_ linking was successful. See `glGetShaderiv` & `glGetProgramiv` on compile and link status.
+Make sure you check that shader compilation *and* linking was successful. See `glGetShaderiv` & `glGetProgramiv` on compile and link status.
 
 ### You are on a Mac 
 
-Seriously port your engine to `metal`, or `webgpu` at least. There is no support for `KHR_debug` and you cannot use anything > gl 4.1 is enough reason
+Please port your engine to `metal` or `webgpu` at least, seriously. There is no support for `KHR_debug` and you cannot use anything > gl 4.1. That is enough reason
 
 You are getting `UNSUPPORTED (log once): POSSIBLE ISSUE: unit 0 GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero texture because texture unloadable`. You need to call glGenerateMipmap(GL_TEXTURE_2D) after glTexImage2D() or set max level to 0 if you dont need/want mips.
+
+If you insist on using Mac, stay with OpenGL 3.3.
 
 ### RenderDoc is crashing when trying to run your application
 
@@ -72,43 +74,54 @@ You most likely have no indexbuffer is bound. Or it is not associated to/with th
 You probably want to draw more primitives than you have in your vertexbuffer, check arguments of your `glDrawArrays` call.
 Potentially you might not have set the vertex count variable and that contains an ununitialized value because you used c/c++ and are a doofus.
 
-### Textures are black
+### Textures/Triangles are black
 
-- no textures bound
-- are your textures complete? if not should produce an output in debug callback, so, go check that (hmm this might not be the case for glXXXTextureStorage i might take this one off the list)
-- no samplers bound (check your sampler objects if you use them as separate objects)
-- fucked uvs
-- you might be sampling from a corner of your texture where its actually black, check uvs
+Did you forget to bind the texture in question?
 
-### Your Triangle is black
+When you are not using `glXXXTextureStorage` but not good and old `glTexImageXX` make sure the texture is complete.
+**Check** with **OpenGL Specification** what completeness entails.
 
-- smells like your vao is fucked. make sure you setup the attributes (and stride when binding le vbo using DSA)
-- fucked uvs?
-- forgot to bind a texture?
+If it was not complete it should have told you about it in the debug callback. **Shame on you** if you still have not set it up.
+
+You might be using sampler objects. Make sure you bind one.
+
+You might be sampling from a corner of your texture where its actually black, Check your UVs.
+
+Another very likely reason is you didn't understand VAOs and copy pastaed it from learnopengl and added your own twist to it.
+Check that your VAO setup is correct. Make sure stride, offset is set correctly. And if you are using multiple vertexbuffers for all your attributes, make sure
+they are bound properly.
+
+You tried to use vertex colors, but you didn't setup the VAO properly.
+Vertex colors might just be black. If it wasn't intentional, check the contents of your VBO.
 
 ### Screen is Black
 
-- check if your screen is on/connected properly
-- camera (projection/view matrices are fucked) is not looking at the scene in question
-- no texture is sampled due to missing or wrong uvs => default value is 0 aka black (depends on the driver)
-- no shader bound (especially fragment shader)
-- fragment shader doesnt write anything to its output
-- no viewport is set/is too small
-- you might be rendering to a framebuffer, but not blitting that framebuffer to the default one
-- let clearcolor be something else than pure black
-- are you doing MRT?
-  - if yes, check that you called the right `gl(Named)DrawBuffers` and not n times `gl(Named)DrawBuffer` one per render target
-- are you playing with depth pre pass-isms?
-  - make sure the gl state between passes is the same, face winding, cullmode, etc, see Appending A.3 in the gl spec for more clues
+- Check if your screen is on/connected properly
+- Camera (projection/view matrices are fucked) is not looking at the scene in question
+- No texture is sampled due to missing or wrong uvs => default value is 0 aka black (depends on the driver)
+- No shader bound (especially fragment shader)
+- Fragment shader doesnt write anything to its output
+- No viewport is set/is too small
+- you might be rendering to a framebuffer, but not blitting that framebuffer to the default one or using it in a way to see its contents.
+- Let clearcolor be something else than pure black
+- are you rendering to multiple render targets?
+  - if yes, check that you called the right `gl(Named)DrawBuffers`. Check that you didnt call `gl(Named)DrawBuffer` once per render target.
+- are you playing with depth-pre-pass-isms?
+  - make sure the gl state between passes is the same, face winding, cullmode, etc. See Appending A.3 in the gl spec for more clues about invariance.
 - check winding order and cullmode, you might be looking at the wrong side of your faces
-- you check renderdoc and wonder why the vertex list contains the same (perhaps even first element) only, for all vertices => make sure your `glDrawElements(..., ..., GL_UNSIGNED_INT, ...)` or whatever datatype your indexbuffer consists of matches that parameter 
+- you check renderdoc and wonder why the vertex list contains the same (perhaps even first element) only, for all vertices. Make sure your `glDrawElements(..., ..., GL_UNSIGNED_INT, ...)` or whatever datatype your indexbuffer consists of matches that parameter 
+
+All these things can be checked with a graphics debugger of your choice.
 
 ### Textures look funny, like a garbled version of the actual image
 
-- make sure your internalformat and actual pixel format match. You probably used stb_image to load, but used 0 as the last parameter, 
-  and pixel data has 3 components, instead of the 4 (GL_RGBA) you told OpenGL about -> request 4 channels from stb_image
+Make sure your internalformat and actual pixel format match.
+You probably used stb_image to load, but used 0 as the last parameter, and pixel data has 3 components, instead of the 4 (GL_RGBA) you told OpenGL about.
+Request 4 channels from stb_image. There is almost never a reason to request 3 or less channels for color bearing pixelmaps.
 
 ### Textures look like one color component is more prominent than others
+
+Happens when you are used to DirectXisms. 
 
 - Colors are more shifted towards blue
   
@@ -118,23 +131,36 @@ Potentially you might not have set the vertex count variable and that contains a
 
   - Original pixeldata was probably in BGR... but you asked for GL_RGB... of sorts => make sure they match
 
-### Textures seem to work, but mesh also appear to be shaded weirdly as if black Fog is on
+### Textures seem to work, but the mesh also appears to be shaded weirdly as if its in some black fog
 
 Did you generate mipmaps?
 
 ### Render artifacts like small missing tiles on a floor
 
-- synchronization issues - perhaps a missing glMemoryBarrier at the right spot
-- ubo/ssbo alignment issue - check std140/430 rule in the glsl spec
-- binding multiple textures to the same slot - check your glBindTextureUnit calls
-- you might be using a float to index into a buffer to grab material/texture info, use a flat int
+VERY likely an alignment issue. **Check** the alignment rules in the **GLSL Specification**.
+
+Other reasons could be that you are binding multiple textures to the same slot/unit. Check your `glBindTextureUnit` calls and if you are stuck in non DSA land,
+check your `glBindTexture/glActiveTexture/glUniform1f` combinations.
+
+Another classic is not using a flat index when indexing into material buffers or texture arrays. 
+
+  ```glsl
+  layout(location = n) flat int in v_material_index;
+  ```
+
+Synchronization issues could be yet another reason. Perhaps a missing `glMemoryBarrier` at the right spot.
 
 ### Depth buffer not cleared
 
 - Despite calling `glClear(GL_DEPTH_BUFFER_BIT)` => check if `glDepthMask` was set to `GL_FALSE`. When you use FBOs migrate to glClearNamedFramebuffer() if you havent already (still requires glDepthMask set properly)
 
-### Weird "Z-fighting"
+### Weird "Z-Fighting"
 
 - check your depth buffer, near and far planes... try near 0.1f and 512/1024 as farplane
 - your depth buffer might be too small and is set to D16 only, set it to something D24 or D32
 - you use SDL2 and on your platform the default might be set to D16, find the SDL2_GL_Set_Attribute which sets the depth bits for the default fbo
+
+### PS
+
+`RenderDoc` is not a profiler, the frametimes you see reported there are not really usable. Use an actual gpu profiler like `NSight Graphics`. I hear you complain already
+that Version YYYY.XX doesnt support your potato GPU. NVidia provides downloads for older versions as well, you just dont get the latest bling features with it.
