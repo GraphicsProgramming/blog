@@ -110,6 +110,7 @@ Vertex colors might just be black. If it wasn't intentional, check the contents 
   - make sure the gl state between passes is the same, face winding, cullmode, etc. See Appending A.3 in the gl spec for more clues about invariance.
 - check winding order and cullmode, you might be looking at the wrong side of your faces
 - you check renderdoc and wonder why the vertex list contains the same (perhaps even first element) only, for all vertices. Make sure your `glDrawElements(..., ..., GL_UNSIGNED_INT, ...)` or whatever datatype your indexbuffer consists of matches that parameter
+- Perhaps you are trying to read an int/uint or long/ulong value from your vertex attribute. Get some glasses and double check that you called the right `glVertexAttrib`**`X`**`Pointer` when setting up your VAO.
 
 All these things can be checked with a graphics debugger of your choice.
 
