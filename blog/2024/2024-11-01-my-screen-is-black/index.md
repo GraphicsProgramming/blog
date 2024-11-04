@@ -8,7 +8,7 @@ tags: ['opengl', 'troubleshoot', 'guide', 'article', 'debug']
 image: 'https://raw.githubusercontent.com/graphicsprogramming/blog/main/blog/2024/2024-11-01-my-screen-is-black/arrested-for-opengl-crimes-full.png'
 ---
 
-![](arrested-for-opengl-crimes-full.png)
+![arrested for opengl crimes](arrested-for-opengl-crimes-full.png)
 
 <!-- truncate -->
 
@@ -25,7 +25,7 @@ If you use `glGetError` with or without macros like `GLCALL` or `GLCHECK` or rol
 
 Make sure you check that shader compilation *and* linking was successful. See `glGetShaderiv` & `glGetProgramiv` on compile and link status.
 
-### You are on a Mac 
+### You are on a Mac
 
 Please port your engine to `metal` or `webgpu` at least, seriously. There is no support for `KHR_debug` and you cannot use anything > gl 4.1. That is enough reason
 
@@ -49,12 +49,12 @@ Older versions of `gEDebugger` or `CodeXL` might work too.
 It is most likely that the headers you are using are just outdated. Regenerate the header on dav1d's site. Or check your build system that it is
 pulling a recent version of glad.
 
-### Debug Callback Says...
+### Debug Callback Says
 
 - `GL_INVALID_OPERATION error generated. Array object is not active.`:
   You didn't bind a VAO. Core Context OpenGL requires a VAO bound at all times. Bind one.
 
-### Shader Compiler Log Says...
+### Shader Compiler Log Says
 
 - `function "main" is already defined`
   You probably compile your fragment shader as vertex shader or other way around
@@ -65,7 +65,7 @@ pulling a recent version of glad.
 You either need to query extensions with a forward compatible context or you switch to query `GL_NUM_EXTENSIONS` first and
 then iterate over all of them with `glGetStringi` and then check if the extension is part of that list. The latter requires a core OpenGL context.
 
-### Exception when calling glDrawElements - aka "0xC0000005" 
+### Exception when calling glDrawElements - aka "0xC0000005"
 
 You most likely have no indexbuffer is bound. Or it is not associated to/with the current VAO.
 
@@ -109,7 +109,8 @@ Vertex colors might just be black. If it wasn't intentional, check the contents 
 - are you playing with depth-pre-pass-isms?
   - make sure the gl state between passes is the same, face winding, cullmode, etc. See Appending A.3 in the gl spec for more clues about invariance.
 - check winding order and cullmode, you might be looking at the wrong side of your faces
-- you check renderdoc and wonder why the vertex list contains the same (perhaps even first element) only, for all vertices. Make sure your `glDrawElements(..., ..., GL_UNSIGNED_INT, ...)` or whatever datatype your indexbuffer consists of matches that parameter 
+- you check renderdoc and wonder why the vertex list contains the same (perhaps even first element) only, for all vertices. Make sure your `glDrawElements(..., ..., GL_UNSIGNED_INT, ...)` or whatever datatype your indexbuffer consists of matches that parameter
+- Perhaps you are trying to read an int/uint or long/ulong value from your vertex attribute. Get some glasses and double check that you called the right `glVertexAttrib`**`X`**`Pointer` when setting up your VAO.
 
 All these things can be checked with a graphics debugger of your choice.
 
@@ -121,7 +122,7 @@ Request 4 channels from stb_image. There is almost never a reason to request 3 o
 
 ### Textures look like one color component is more prominent than others
 
-Happens when you are used to DirectXisms. 
+Happens when you are used to DirectXisms
 
 - Colors are more shifted towards blue
   
