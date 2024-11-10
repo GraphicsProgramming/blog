@@ -83,7 +83,7 @@ const config: Config = {
       defaultMode: 'dark',
       respectPrefersColorScheme: true,
     },
-    image: 'img/gp-discord-logo.gif',
+    image: 'img/discord-banner.jpg',
     navbar: {
       title: 'Graphics Programming',
       logo: {
