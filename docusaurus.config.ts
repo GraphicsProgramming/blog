@@ -5,7 +5,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
-  title: 'Graphics Programming Discord Server',
+  title: 'Graphics Programming Discord',
   tagline: 'Articles, guides, tips and tricks from and for frogs and forgis of the graphics programming discord',
   favicon: 'img/favicon.ico',
 
