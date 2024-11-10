@@ -5,7 +5,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
-  title: 'Graphics Programming Discord Server',
+  title: 'Graphics Programming Discord',
   tagline: 'Articles, guides, tips and tricks from and for frogs and forgis of the graphics programming discord',
   favicon: 'img/favicon.ico',
 
@@ -58,7 +58,7 @@ const config: Config = {
           },
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/GraphicsProgramming/',
+            'https://github.com/GraphicsProgramming/blog',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -83,7 +83,7 @@ const config: Config = {
       defaultMode: 'dark',
       respectPrefersColorScheme: true,
     },
-    image: 'img/discord-banner.jpg',
+    image: 'img/gp-discord-logo.gif',
     navbar: {
       title: 'Graphics Programming',
       logo: {
