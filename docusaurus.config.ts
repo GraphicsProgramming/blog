@@ -58,7 +58,7 @@ const config: Config = {
           },
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/GraphicsProgramming/',
+            'https://github.com/GraphicsProgramming/blog',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
