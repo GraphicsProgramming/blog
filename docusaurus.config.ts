@@ -139,7 +139,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Graphics Programming Discord, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Graphics Programming Discord. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.duotoneLight,
