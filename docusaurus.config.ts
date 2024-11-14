@@ -130,7 +130,7 @@ const config: Config = {
           items: [
             {
               label: 'Blog',
-              to: '/blog',
+              to: 'https://graphics-programming.org/',
             },
             {
               label: 'GitHub',
