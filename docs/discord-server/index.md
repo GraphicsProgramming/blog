@@ -44,7 +44,7 @@ Disruptive behavior will result in warnings or bans:
 
 ## Roles
 
-We have a few custom roles on our server, some are self-assignable while some are granted by the mods. Head over to ⁠reaction-roles to pick the api, coordinate system, or pronouns of your choosing!
+We have a few custom roles on our server, some are self-assignable while some are granted by the mods. Head over to ⁠reaction-roles to pick the api or coordinate system!
 
 ## Community
 
