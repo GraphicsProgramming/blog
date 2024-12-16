@@ -10,7 +10,13 @@
   overflow: hidden;
 }
 
-@media screen and (max-width: 996px) {
+.ytEmbed {
+  max-width: 100%;
+  aspect-ratio: 16/9;
+  height: auto;
+}
+
+@media screen and (min-width: 720px) and (max-width: 996px) {
   .heroBanner {
     padding: 2rem;
   }
