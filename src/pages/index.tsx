@@ -16,7 +16,7 @@ function HomepageHeader() {
           {siteConfig.title}
         </Heading>
         <p className="hero__subtitle">Articles, guides, tips and tricks from and for frogs and forgis of the Graphics Programming discord.<br />This is what we do</p>
-        <iframe width="960" height="520" src="https://www.youtube.com/embed/E07I1VRYlcg?si=PUsHfqq3YKLIp2kS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <iframe className={styles.ytEmbed} width="960" height="520" src="https://www.youtube.com/embed/E07I1VRYlcg?si=PUsHfqq3YKLIp2kS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg test"
