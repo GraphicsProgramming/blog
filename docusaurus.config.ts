@@ -6,7 +6,7 @@ import rehypeKatex from 'rehype-katex';
 
 const config: Config = {
   title: 'Graphics Programming Discord',
-  tagline: 'Articles, guides, tips and tricks from and for frogs and forgis of the graphics programming discord',
+  tagline: 'Articles, guides, tips and tricks from and for frogs and forgis of the graphics programming discord. This is what we do:',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
@@ -63,7 +63,7 @@ const config: Config = {
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
           onUntruncatedBlogPosts: 'warn',
-          routeBasePath: '/',
+          //routeBasePath: '/',
           blogSidebarCount: 'ALL',
           remarkPlugins: [remarkMath],
           rehypePlugins: [rehypeKatex],
@@ -91,6 +91,11 @@ const config: Config = {
         src: 'img/gp-discord-logo.gif',
       },
       items: [
+        {
+          to: '/blog', 
+          label: 'Blog', 
+          position: 'left'
+        },
         {
           type: 'docSidebar',
           sidebarId: 'discordServer',
