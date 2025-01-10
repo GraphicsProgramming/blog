@@ -2,11 +2,11 @@
 title: 'The Nabla FFT, FFT convolution and Bloom'
 slug: 'the-nabla-fft-and-bloom'
 description: 'Understanding and using the Nabla FFT'
-date: '2024-12-XX'
+date: '2024-01-10'
 authors: ['fletterio']
 tags: ['nabla', 'vulkan', 'article', 'tutorial', 'showcase']
 last_update:
-    date: '2024-12-XX'
+    date: '2025-01-10'
     author: Fletterio
 ---
 
@@ -247,9 +247,11 @@ coordinates and sample the kernel spectrum at those coordinates using a hardware
 
 My math on what happens to the kernel when bilinearly interpolating the spectrum is a bit iffy. Our Lead Build System and Test Engineer, Arkadiusz, [has a Vulkanised talk discussing this technique a bit more in-depth](https://youtu.be/Ol_sHFVXvC0). 
 
-In short, it's a rough type of polyphase filter. After the fractional upsampling in the spectral domain, we get both periodic repetition of the signal and aliasing in the spatial domain. The convolution with the tent filter after the upsampling is a product with a $\text{sinc}^2$ in the spatial domain, that kills the repeated signals but (since tent is not a perfect filter) some ringing survives, which can cause artifacts. Also, the aliasing is unaccounted for, since there's no (spatial) filtering before the upsampling. There is an assert in our bloom example on the ratio of the size kernel used to the size of the image. If this ratio is too low, there's going to be a lot of aliasing and the kernel will degrade. This and potential artifacts caused due to ringing can always be solved by using a higher res kernel (potentially at the cost of speed, depending on the size of your image and kernel and how they round up to PoT).
+In short, it's a rough type of polyphase filter. After the fractional upsampling in the spectral domain, we get both periodic repetition of the signal and aliasing in the spatial domain. The convolution with the tent filter after the upsampling is a product with a $\text{sinc}^2$ in the spatial domain, that kills the repeated signals but (since tent is not a perfect filter) some ringing survives, which can cause artifacts. Also, the aliasing is unaccounted for, since there's no (spatial) filtering before the upsampling. There is an assert in our bloom example on the ratio of the size kernel used to the size of the image. If this ratio is too low, there's going to be a lot of aliasing and the kernel will degrade (think about zooming out on an image - high frequency detail is lost the more you shrink it). This and potential artifacts caused due to ringing can always be solved by using a higher res kernel (potentially at the cost of speed, depending on the size of your image and kernel and how they round up to PoT).
 
 Afterwards, we perform an IFFT on the result and only store the central columns back to memory (so we don't store any padding unnecessarily). Finally, we perform the last IFFT along the $y$-axis. We pack two columns together: since each column is the FFT of a real signal we perform a similar trick as before by packing two consecutive columns $X, Y$ as $Z = X + iY$, perform the IFFT to get $z = \text{IFFT}(Z)$ and then unpack $x = \text{Re}(z), y = \text{Im}(z)$. We do this at the same time as we expand columns back to their original size: remember we actually saved half of a column by storing the locally even elements, so we also make sure to set all locally odd elements with their corresponding values as well. After this last IFFT we keep the central pixels (again ignoring the padding on both sides) and store the result to output. 
+
+### Dynamic
 
 ### Deciding which axis to run the FFT along first
 
@@ -263,7 +265,7 @@ Which one is better? Well in this particular case, $y$-axis first takes about $0
 
 If we change the kernel to a size of `512 x 512`, then doing $y$-axis first ends up costing `640` `2048`-sized FFTs followed by `1024` `2048`-sized FFTs. Doing $x$-axis first, on the other hand, costs `360` `2048`-sized FFTs followed by `1024` `2048`-sized FFTs. Unlike the previous case in which the FFTs to compare are all different-sized, this particular case is easier to analyze: $y$-axis first runs `1664` `2048`-sized FFTs in total while $x$-axis first runs `1384` FFTs of the same size, so it's reasonable to expect that $x$-axis first performs better in this case. Indeed, $x$-axis first takes about $1.44 \; \text{ms}$ to run, while $y$-axis first takes about $1.8 \; \text{ms}$. The ratio of total FFTs is very similar to the ratio of time taken: $\frac {1.44 \text{ ms}} {1.8 \text{ ms}} = 0.8$ and $\frac {1384} {1664} \approx 0.83$
 
-In fact, these ratios were also very similar in the `256 x 256` kernel case as well, even if the FFTs were differently-sized. Without running many experiments with varying sizes and hardware, however, it's hard to decide which way is better, except in particular cases like the `512 x 512` kernel case above. 
+In fact, these ratios were also very similar in the `256 x 256` kernel case as well, even if the FFTs were differently-sized. Without running many experiments with varying sizes and hardware, however, it's hard to decide which way is better without profiling, except in particular cases like the `512 x 512` kernel case above.
 
 ### Ringing
 
