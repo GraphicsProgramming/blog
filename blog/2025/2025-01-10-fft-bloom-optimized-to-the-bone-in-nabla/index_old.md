@@ -2,7 +2,7 @@
 title: 'The Nabla FFT, FFT convolution and Bloom'
 slug: 'the-nabla-fft-and-bloom'
 description: 'Understanding and using the Nabla FFT'
-date: '2024-01-10'
+date: '2025-01-10'
 authors: ['fletterio']
 tags: ['nabla', 'vulkan', 'article', 'tutorial', 'showcase']
 last_update:
@@ -16,7 +16,7 @@ In this article we show how to run an FFT in Nabla, talk about the ordering of t
 
 <!-- truncate -->
 
-## FFT refresher
+# FFT refresher
 
 The following discussion is exclusively over discrete spaces. If you're familiar with the FFT and its uses you can skip ahead to the next section.
 

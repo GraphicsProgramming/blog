@@ -1,0 +1,388 @@
+---
+title: 'FFT Bloom Optimized to the Bone in Nabla'
+slug: 'fft-bloom-optimized-to-the-bone-in-nabla'
+description: 'Understanding and using the Nabla FFT'
+date: '2025-01-10'
+authors: ['fletterio']
+tags: ['nabla', 'vulkan', 'article', 'tutorial', 'showcase']
+last_update:
+    date: '2025-01-10'
+    author: Fletterio
+---
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/IvWbIPyqE0s?si=UYAO5G_5GIMXxY7Z" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Described as "the most important numerical algorithm of our lifetime", the FFT has applications in a plethora of domains.
+
+In this article I show how to run an FFT in Nabla, talk about different optimizations and showcase one application in graphics: FFT Bloom. 
+
+<!-- truncate -->
+
+## The Fast Fourier Transform
+
+First, one must know what a Fourier Transform is. Essentially, it's a clever way of decomposing periodic signals into their frequency components, essentially it's nothing more than an orthonormal change of basis. This might weird to think about, so here's a good intro to the topic by 3B1B:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/spUNpyF58BY?si=ZlJZDmq5fLnEkjnj" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Don't dwell too much on the continuous case because we're mostly interested in the [Discrete Fourier Transform](https://en.wikipedia.org/wiki/Discrete_Fourier_transform) (DFT for short). It's a center piece of Digital Signal Processing. As a quick summary, the DFT is nothing but a change of basis in some vector space. Given a signal defined over some domain (spatial or temporal, usually), the "natural" representation of it is its "canonical basis decomposition" - which means mapping each point in space or time to the signal's value at that point. Thanks to Fourier, we have another very useful representation for the same signal, which involves its "spectral decomposition" - periodic functions defined over certain domains can always be written as a linear combination of some special orthogonal (w.r.t. some metric) functions over the same domain. 
+
+The DFT is a linear transform that maps an $n$-dimensional vector $x$ representing some periodic signal to another $n$-dimensional vector $X$ such that the coordinates of $X$ are the coefficients of the linear decomposition of $x$ in this special basis. Those of you familiar with linear algebra will probably immediately recognize this is just a change of basis, computed as a matrix product $D \cdot x$, where $D$ is the matrix associated with the linear transform (the DFT).
+
+As posed, however, the DFT is a quite expensive operation: a matrix product is $O(n^2)$. That's where the Fast Fourier Transform (FFT for short) comes in! The Cooley-Tukey FFT (one of many FFT algorithms) exploits symmetries in the DFT's associated matrix to design a divide and conquer algorithm bringing its complexity down to $O(n\log n)$. There are actually a bunch of FFT algorithms that work in a similar fashion and achieve the same time complexity, but in this article we will restrict the discussion to the classic Radix-2 Cooley-Tukey algorithm, which is what we use in Nabla. 
+
+The Radix-2 Cooley-Tukey FFT algorithm (from now on when I say FFT I will mean specifically this algorithm) is easier to implement than other FFT algorithms and maps nicely to the way parallelization is done in a GPU. The main drawback of it is that it only works on Power-of-Two sized (PoT for short) arrays. This requires us to pad any array we want to run an FFT on up to the next power of two. In some cases, it can result in a bunch of wasted compute power (worst cases have you wasting almost the same amount of compute as what you effectively actually need) but that's the price of convenience and simplicity, especially regarding the use of GPU hardware. Still, it runs pretty fast :).
+
+Now you might be asking, why would I care about computing the DFT really fast? Well, there's a lot of operations that are accelerated with the FFT. One of those, as you might have guessed from the title of this article, is convolution.
+
+## Convolution and The Convolution Theorem
+
+The convolution of two signals $f$ and $g$, denoted by $f * g$, is a special type of product. My favourite way of reasoning about it (and one I have surprisingly very rarely come upon) is that it's just the superposition of many copies of $f$: for each point $x$ in your space, you take a copy of $f$ centered at $x$, $f(t-x)$ (as a function of a parameter $t$), and scale it by the value of $g$ at that point, $g(x)$, then sum all of these copies together. 3B1B again has a great introductory video, although he presents convolution in a more "standard" way, which is by sliding inverted copies of one signal over the other: 
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/KuXjwB4LzSA?si=8Ma-72OlJ_m-0r3_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+[The Convolution Theorem](https://en.wikipedia.org/wiki/Convolution_theorem#Periodic_convolution) states that we can perform a (circular) convolution as a Hadamard (element-wise) product in the spectral domain. This means that convolution goes from an $O(nm)$ operation ($n$ being the number of pixels of a signal and $m$ being the number of pixels of a filter) down to $O(n \log n)$ (assuming $n \ge m$): You do Forward FFT, then Hadamard product, then Inverse FFT, with the FFTs being $O(n \log n)$ and the product being $O(n)$. For small filters the FFT convolution ends up being slower, but for larger ones the speedup is massive.
+
+Our Lead Build System and Test Engineer, Arkadiusz, has a Vulkanised talk giving a recap of the Convolution Theorem and the usage of the FFT in Nabla: 
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Ol_sHFVXvC0?si=qmAz8XLshpGIKFr0&amp;start=271" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+## FFT Bloom
+
+[Bloom](https://en.wikipedia.org/wiki/Bloom_(shader_effect)) is a visual artifact in imaging. Bloom in Computer Graphics can be simulated as a post-processing effect by convolving an incoming image with a point spread function (PSF) which, as its name implies, spreads light all over the image. If you think to what I introduced the convolution as, convolving the image with a PSF means that at each pixel of the image you "paste" a scaled copy of the PSF, then sum all of them together. The PSF is a non-negative function that integrates to $1$ which is very strong towards the center and decays rapidly towards the edges. 
+
+"Pasting" a copy of a PSF at pixel $p$ of the resulting convolved image, scaled by the value of the original image at pixel $p$, essentially has the effect of leaving much of the original pixel's light close to where it originally was, but also spreading some of it througout the rest of the pixels affected by this copy of the PSF. 
+
+It is common to distinguish when performing a convolution the signal we're interested in (in this case, our image) and the *kernel* we're convolving it against (in this case, the PSF). Therefore, whenever you read the word *kernel* in this article, remember we're talking about an image / texture representing our PSF and NOT a program running on the GPU. 
+
+Since Bloom is done with a convolution, and we're considering pretty big PSFs (think `256x256` or `512x512`) we set out to accelerate the convolution with FFT. The algorithm to perform FFT Bloom is roughly as follows:
+
+```
+1. compute the spectrum of the kernel via FFT
+2. compute the spectrum of the image via FFT
+3. compute the Hadamard product of both spectra
+4. compute the IFFT of the resulting product
+5. FFTShift the result 
+```
+
+Here's what convolving this image ![Balls](image.png "Raytraced Balls") against this kernel
+
+![Kernel](kernel.png "Kernel")
+
+looks like: 
+
+![Convolved](convolved.png "Convolved")
+
+I'm showing the kernel with a white point of $10^{-6}$ so you can appreciate its shape, but its actually a PSF that's super strong in the middle and rapidly decaying towards the edges. For reference, here's the same kernel with a white point of $10^{-4}$:
+
+![Small Kernel](kernel_small.png "Kernel with a higher white point")
+
+The spectra of both signals are computed on a per-channel basis, meaning that we compute one spectrum for each of the R,G,B channels, since convolution is performed on each channel independently.
+
+Since the DFT is separable over Euclidean domains, the spectrum of each signal is computed by performing the FFT along one axis at a time. This is important when we consider optimizations.
+
+### Padding
+
+One important detail about the FFT accelerated convolution we must not overlook is that it uses what's known as a circular convolution - in English, it assumes our signals are periodic (sampled with `GL_REPEAT`). If you were to naively compute both spectra as they come, multiply them then run the IFFT back, you'd find artifacts such as this:
+
+![Unpadded](unpadded.png "Wraparound artifact")
+
+What's going on is that, since we assume the image to be periodic, any light that would "spill over" from the top of the image ends up wrapping around and contaminating the pixels below. Essentially it's equivalent to padding the image with `GL_REPEAT`, convolving the result with the kernel, then keeping the central pixels. Here's a neat visualization for that:
+
+![Wrapped](wrapped.png "Repeat padding and convolution")
+
+To avoid this kind of artifact, one must first pad the image with at least half the kernel size on each side so that the image is now bigger and this "spillover" happens only in the padding pixels, which get cut off when we go back to the original image dimensions. Wrapping modes that make sense here are mirror padding and zero padding. 
+
+Mirror padding has the nice property that total luminance in the image is (kind of) preserved: take a pixel $p$ such that when "pasting" a copy of the kernel at its location, some pixels of this kernel copy end up in the padding. This is luminance lost due to it being pixels that get cut off from the end result. But for each one of those pixels in the padding, when pasting a kernel copy over them, some of that copy overlaps $p$, adding back some lost luminance. If the kernel was perfectly radially symmetric, this would mean no lost luminance. In practice it means a very slight variation in luminance.
+
+However, mirror padding can cause artifacts such as this when there's pixels that are too bright near the borders: 
+
+![Mirror Padding Artifact](mirror_padding_artifact.png "Artifact causes by mirror padding")
+
+As you can see with the "Sun" ball there, there's an abnormal amount of light towards the border. This is because a "copy" of the Sun is spawned right on the other side of that border and a lot of light from it is contaminating the pixels below:
+
+![Mirror Padding](mirror_padding.png "Full convolved image with mirror padding")
+
+Zero padding is much nicer and it's what's used in the video at the start of this article. Zero padding has some lost luminance (since light spilling over to the padding zone is not compensated for) and given the shape of the PSF, pixels near the border lose much more luminance, which can turn the borders of the image darker. However, this is barely noticeable in practice and we avoid artifacts like the one showcase for mirror padding. Furthermore, autoexposure methods handle the lost luminance in the image. 
+
+### The FFTShift
+
+Why do you need to "FFTShift" the result, and what even is the FFTShift? First, let's get the following undiscussed step out of the way: the Hadamard product. 
+
+To compute the Hadamard product, both matrices must have the same dimensions, which is almost never the case. We'll talk about the optimization done in our example later, but for now you can think that instead of the kernel $K$ for the convolution we're using another kernel $K'$ which has the same dimensions as our image and consists of a copy of $K$ in the centre, and zero padding all around it. The result of the convolution between our image and $K'$ is the same as the convolution with $K$, except for a lot of zero padding to the sides.  
+
+The DFT assumes the "origin" of our signal is the "top-left" or "bottom-left" element of the signal, depending on which coordinate you set as $(0,0)$. This is true for both image and kernel.
+
+In practice what this means is that for each pixel $p$ in our image the convolution is still doing this process of "pasting" a scaled copy of the kernel, but instead of being centered at that pixel's location we paste a copy that has its $(0,0)$ position at $p$. 
+
+Here's a comparison between pasting a centered copy (left) vs pasting a copy starting at $(0,0)$ (when the origin is set to be the top left of the image):
+
+![Centered Comparison](centered_comparison.png "Comparison between kernel pasting")
+
+where $p$ would be the red pixel. When you convolve using the DFT, you're actually using the "pasting" method on the right. Furthermore, since both image and kernel have the same size, what's going to happen when pasting kernel copies in this manner is that a bunch of pixels from some copies will go into "the padding area" and wraparound to the other side of the image. 
+
+Due to the way this pasting works, the wraparound only happens in one direction for each axis. For example if $(0,0)$ is the top-left corner as the example above, wraparound can only happen from pixels being too far to the right or too far below. But no matter where $(0,0)$ is, if it's a corner of the image (which is what convolution via DFT assumes) the result will be the same.
+
+The result of doing the convolution in this way is the following:
+
+![Unshifted](unshifted.png "Result of convolution with no FFTShift")
+
+So one possible fix is to take that image and apply what's colloquially known as the FFTShift: For each axis, swap halves around. You can see in the image above if you swap the upper half with the lower half and then swap the left half with the right half, you'll get the correct result (in this case there was no padding to simplify stuff so you'll still see the wraparound artifact we talked about before). 
+
+An equivalent "fix" would be to apply the FFTShift to either the kernel or the image before computing their spectrum. When shifting the kernel, for example, the effect is that the center of the kernel ends up at $(0,0)$. This is still the same kind of expensive, because it's a shift of $K'$ which has the same dimensions as the output image. If you're precomputing the kernel just once, however, it's totally fine.
+
+Much cheaper, however, is a trick that computes the effect of the FFTShift in the spectral domain. The [Time Shift property](https://en.wikipedia.org/wiki/Fourier_transform#Time_shifting) of the Fourier transform
+lets us compute the FFTShift right after computing the spectrum of the kernel. In the discrete domain this property becomes the [Shift Property](https://en.wikipedia.org/wiki/Discrete_Fourier_transform#Shift_theorem) of the DFT.
+
+Essentially, along an axis with length $N$, we're shifting all elements by $\frac N 2$ to either the left or right: it's the same because the signal is periodic, so you move the whole axis $\frac N 2$ to either side and the half that falls outside the range $[0, N-1]$ just wraps around to the other side. Since $2 \pi$ is a whole period of our signal and we're shifting it by half a period, the result in space of this shift yields
+
+$\mathcal F (\text{FFTShift(x)})_k = e^{- i \pi k} \cdot \mathcal F(x)_k$
+
+in the spectral domain. Since this is done for each axis, the result is essentially the same as the Hadamard product   
+$M \cdot \mathcal F(K')$ of the matrix $M$ and the spectrum of the kernel $\mathcal F(K')$, where  
+ $M_{xy} = (-1)^{x+y}$ (due to the particular form the complex exponentials take along each axis). 
+ 
+ This doesn't even have to be computed as a product in practice, you can just flip the sign of the odd positions (those whose coordinates sum to an odd number) in $\mathcal F(K')$ as you compute it.
+
+## Optimization 1: Exploiting the Hermitian Symmetry of the spectra of real signals
+
+[The DFT of a real sequence is Hermitian](https://en.wikipedia.org/wiki/Discrete_Fourier_transform#DFT_of_real_and_purely_imaginary_signals), meaning that if $\text{DFT}$ is the DFT of a sequence of real numbers $f$, then it satisfies $\text{DFT}[T] = \text{DFT}[-T]^*$ ([click here](https://kovleventer.com/blog/fft_real/) if you don't get the notation.) 
+
+Once again, here's Arkadiusz talking about this:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Ol_sHFVXvC0?si=1ke5LgxKgDwQ-iEL&amp;start=513" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+This has two important implications: first, that after performing the FFT of a real signal, we only need to store half of the values, since the other half are redundant. The values we store for a sequence of length $N$, for even $N$, are those indexed $0$ through $\frac N 2$, where the latter is commonly known as the Nyquist frequency. 
+
+"But hold on a second. Those are actually half plus one values of the resulting DFT" an observant reader might say. But worry not, a nice property of even-length sequences is that $-i$ is always part of the group of roots of unity that participate in computing the FFT. An implication of this is that both $\text{DFT}[0]$ and $\text{DFT}[\frac N 2]$ are real-valued for the DFT of a real signal, which lets us pack both elements together in a single complex number as $\text{DFT}[0] + i \cdot \text{DFT}[\frac N 2]$. 
+
+The other important implication is explored in the link to [kovleventer's blog](https://kovleventer.com/blog/fft_real/) above. If you think about it, you are performing the FFT of a sequence of $N$ real numbers and keeping $\frac N 2$ complex numbers, which is the same amount of real numbers. But the FFT takes $N$ complex numbers as input and gives $N$ complex numbers as output, so we're wasting half of our compute! 
+
+Thankfully, the hermitianicity (hermiticity?) of the DFT of real signals and the linearity of the DFT allow us to exploit the computation: we can pack two real signals $x,y$ into a single complex signal   
+$z = x + iy$, compute $Z = \text{DFT}(z)$, and then used the rules explored in that blog post to retrieve  
+$X = \text{DFT}(x), Y = \text{DFT}(y)$. We call this process packing and unpacking.
+
+Also, from the first important implication, we notice that we don't have to unpack the whole of $X$ and $Y$, so we limit ourselves to only unpack the lower half (indices $0$ through Nyquist) of each.
+
+So to perform the FFT on the first axis (considering a single channel), we pack together two rows or columns of the image (depending on which axis we're running the FFT along first), compute the FFT of this packed signal and then unpack and save half of each. Then, we run an FFT along the other axis along the result. 
+
+Say you did this on an $N \times M$ image, for even $N$ and $M$, running it along the $x$ axis first (so packing rows together). The result has a size of $\frac N 2 \times M$ (saving half of each row). So when running the FFT along the $y$ axis, you'd only need to consider $\frac N 2$ columns instead of $N$! You can rest assured that the FFT of the "implicit" rows is redundant to compute: the implicit columns are exactly the complex-conjugate of one of the columns we do compute the FFT of, so [this property](https://en.wikipedia.org/wiki/Discrete_Fourier_transform#Conjugation_in_time) ensures that we can reconstruct their FFT easily (and as a consequence, we have the result that Arkadiusz showcases).
+
+This packing/unpacking is also useful when doing IFFT on the way back: given   
+$X = \text{DFT}(x), Y = \text{DFT}(y)$ where we know $x,y$ are real signals, then we can once again pack   
+$Z = X + i \cdot Y$, compute $z = IDFT(Z)$, and then unpack $x,y$ with a much simpler rule:  
+$x = \text{Re}(z), y = \text{Im}(z)$
+
+Another optimization done here is that after running the FFT along the first axis, we saved all of the Zero and Nyquist frequencies packed together into a single scanline. So, when running the FFT along the second axis, we compute this scanline with a special rule considering that it's the FFT of two packed real signals.
+
+## Optimization 2: Single element trade after an FFT butterfly
+
+The Cooley-Tukey Radix-2 FFT is performed with $k$ stages for a sequence of length $N = 2^k$. There's also two complementary ways of computing the DFT with this algorithm: Decimation in Time (DIT) and Decimation in Frequency (DIF).
+In Nabla, our forward FFT implements the DIF algorithm, while the inverse FFT implements the DIT algorithm + normalization. Each one of these returns the output in some nonstandard order (more on that later). Furthermore, running one after the other (in either order) results in the identity function.
+
+Here's a visualization of the DIF algorithm for a sequence of length $8$:
+
+![DIF](dif_diagram.png "DIF Diagram")
+
+At each stage, each cross is called a butterfly. Each cross has two inputs (the two circles on the left) and two outputs (the two circles on the right). The outputs of the butterflies become inputs for the butterflies of the next stage. I won't go into too much detail of how each butterfly is computed ,go check out the FFT algorithm for those details if you're interested.
+
+An important thing to notice here is that each stage computes twice the FFTs as the previous stage, each with half the length, and terminating when the FFT is of length two with a single butterfly per FFT. In fact, this is exactly the point of the FFT: it's a divide-and-conquer type of algorithm. For example, if you take only the top half of the diagram starting from stage $2$ onwards, that's exactly a DIF diagram for a sequence of length 4. The same can be said about the lower half, of course. 
+
+Since we have the diagram at hand, let's also introduce the "stride". Each stage has an associated stride, which is simply the distance (in lanes) between the elements participating in a butterfly. For example, in stage $0$ this stride is $4$, since butterflies happen between elements $4$ lanes apart. The starting stride is always $\frac N 2$ for a sequence of length $N$, and each stage's stride is half the stride of the previous stage.
+
+In the diagram above, to compute the FFT of a sequence of length $8$ first we perform some butterflies to prepare the input for the next stage, and then the next stage runs two FFTs on sequences of length $4$ independently. Each of these FFTs, in turn, does the same: perform some butterflies as input for stage $3$, then run two FFTs on sequences of length $2$ independently.
+
+How do we map this to hardware? Well, we notice that the number of butterflies per stage is constantly $\frac N 2$. In our implementation, we make threads compute a single butterfly each at each stage. That means that we launch $\frac N 2$ threads, with thread of thread ID $n$ in charge of computing the $n$th butterfly, when counting butterflies from the top. So at stage $1$, for example, thread $0$ is in charge of computing the butterfly between its inputs $x[0]$ and $x[4]$, and thread $2$ would be in charge of computing the butterfly between inputs $x[2]$ and $x[4]$. 
+
+Now let's look at stage $2$. The first butterfly of stage $2$, with index $0$ counting from the top, has to be performed by thread $0$. But to do this we require the first of thread $0$'s output of the previous stage, and the first of thread $2$'s output. Similarly the third butterfly, with index $2$, has to be performed by thread $2$ with the second outputs of the same butterflies. 
+
+For easier nomenclature we say that each thread at a certain stage holds two elements "lo" and "hi". These are the elements participating of a butterfly: the one closest to the top of the diagram is "lo", and the other is "hi" (could be counterintuitive but it's because we count from the top). Since butterflies are performed in-place "lo" and "hi" can either be the inputs or the outputs of the butterfly, depending on at which moment (although in the same stage) you are inspecting them. So with this nomenclature, thread $0$ at stage $2$ needs its own "lo" and the output "lo" of thread $2$ at the previous stage to compute its butterfly, and similarly thread $2$ needs to do the same but with the "hi"s. 
+
+It turns out that at each stage, thread $x$ must use of its own outputs of the previous stage and one of the values of thread $x$ \^ $\text{stride}$, where we consider the stride of the current stage. For example at stage $2$ the stride is $2$ and we can see that the pairs exhchanging ther elements $((0,2)$ and $(1,3))$ can be obtained from one another by XORing their threadID with the current stride. The same thing happens at stage $3$ with a stride of $1$. 
+
+Once a thread has figured out with which other thread it must exchange a single value, it must also figure outwhether to keep its "lo" and exchange its "hi" or vice-versa. As it turns out, the thread of lower ID exchanges its "hi" and the thread of higher ID exchanges its "hi". You can see this being true in the DIF diagram as well. To figure out whether a thread is the one of lower or higher ID in the pair, just check whether `threadID ^ stride` is nonzero, since stride is always a power of two (the result is $0$ for the thread of lower ID and nonzero for that of higher ID).
+
+If that gets hard to visualize, here's the same diagram with each node colored according to which thread is holding that element at that point in time. Thread $0$ is blue, $1$ is red, $2$ is green and $3$ was left white. You'll have to excuse my paint skills. Remember that for each thread, "lo" is always the elements closest to the top in the diagram, and the other is "hi".
+
+![DIF](dif_diagram_color.png "DIF Diagram")
+
+## Optimization 3: Exploiting Shared Memory in Compute, subgroup operations and overcoming maximum Workgroup sizes with Virtual Threads
+
+It turns out that not all FFTs are born equal: some are much easier to handle than others. The smallest size for an FFT we consider is $2 \cdot \text{SubgroupSize}$ where $\text{SubgroupSize}$ is the smallest possible number of threads your device can run in parallel in the same subgroup. We call such an FFT "Subgroup-sized".
+
+Thus, each thread would hold two elements "lo", "hi" at all times and the DIF diagram (or DIT in the case of the inverse FFT) maps nicely to the hardware. If you want to compute an FFT for a sequence shorter than that, you must pad it to that size in whichever way you see fit.
+
+This Subgroup-sized FFT is the fastest it can be, since all elements of the FFT can be made resident in registers and the element swaps we talked about in the previous section can be implemented as subgroup XOR shuffles, which is a SPIR-V intrinsic and modern GPUs usually have hardware to speed this shuffle operation.
+
+What happens for bigger-sized FFTs? Well, up to $2 \cdot \text{MaxWorkgroupSize}$ (where $\text{MaxWorkgroupSize}$ is, as the name implies, the maximum number of threads your device can launch in a single dispatch) you can still use the same exact DIF and DIT algorithms, but using shared memory to perform the shuffles. We call these FFTs "Workgroup-sized". We implement our own generic library for what we call workgroup shuffles: they perform the operation of swapping values between threads in the same workgroup, mimicking what subgroup shuffles do but at the workgroup level. 
+
+To do this, we essentially have all threads in a workgroup write their elements to shared memory, barrier to make sure every thread is done writing, then make threads read their values from shared memory. It is slower than a subgroup shuffle since it involves barriering, but it's miles better in terms of latency than going through global memory. 
+
+We only use this when necessary: for example, if running a forward FFT on a sequence of length $4 \cdot \text{SubgroupSize}$, only the first stage needs to do such a barrier. At the second stage we run two Subgroup-sized FFTs, which we established can be done by a single subgroup with subgroup shuffling. In the case of an inverse FFT (go look at a DIT diagram if you want), this order would be reversed and only the last stage would need a workgroup shuffle.
+
+What about a "bigger than Workgroup"-sized FFTs? For example, take a sequence of length $4 \cdot \text{MaxWorkgroupSize}$. With our algorithm, we'd need $2 \cdot \text{MaxWorkgroupSize}$ threads in a single workgroup to achieve this. That's where virtual threading comes in!
+
+Virtual threading essentially consists of emulating many threads' behaviour using a single thread. For a visualization, say our $\text{MaxWorkgroupSize}$ was $2$ and we're running an FFT on a sequence of $8 = 4 \cdot \text{MaxWorkgroupSize}$ elements like before. Here's the image again so you don't have to go fetch it.
+
+![DIF](dif_diagram_color.png "DIF Diagram")
+
+This time however, there are only two real threads and four virtual threads. Thread $0$ manages virtual threads $0$ and $2$ (those which had elements tagged blue and green, respectively) and thread $1$ manages virtual threads $1$ and $3$ (red and white). The idea now is to divide the first stages into computations we can do sequentially until we recurse down to Workgroup-sized sub-FFTs (in this example this happens at stage $2$). 
+
+Virtual threads can be grouped into "virtual workgroups". We see that after stage $1$ in the diagram above, virtual threads $0$ and $1$ must compute a Workgroup-sized FFT (the top half of the diagram starting from stage $2$) and the same thing happens for virtual threads $2$ and $3$. 
+
+This gives us an idea of how to group virtual threads together, because after stage $1$ we can make our real threads compute two Workgroup-sized FFTs in sequence: once emulating virtual threads $0$ and $1$, and a second time emulating virtual threads $2$ and $3$, and each time using shared memory for shuffles since the size allows it. 
+
+Computing stage $1$ is also easy: all butterflies are independent, even within the virtual workgroup, so you can compute them in any order. To keep things consistent we choose to emulate threads per virtual workgroup as well: in a first step, thread $0$ emulates the blue butterfly and thread $1$ the red butterfly (which are those for virtual threads $0$ and $1$) and then in a second step they do the same for the other two butterflies. 
+
+There is no element swap after butterflies though: virtual threads read in their inputs and write out their outputs to the same place they had read their inputs from. Element swapping now happens indirectly: in the next stage, virtual threads figure out which elements they need to read in to perform their computations.
+
+This generalizes to arbitrary "bigger than Workgroup"-sized FFTs: Run all the butterflies in sequence in each "bigger than Workgroup" stage, reading and writing their inputs and outputs from and to the same place. Then once you get to Workgroup size, you can run the algorithm for Workgroup-sized FFTs that uses shared memory for faster swapping.
+
+Our FFT code requires a bunch of template parameters to be called, among those we find `ElementsPerInvocation` and `WorkgroupSize` (it actually takes their base $2$ logarithm, given that they should be powers of two). This is to indicate that we're going to be performing an FFT on an array of size $N = \text{ElementsPerInvocation} \cdot \text{WorkgroupSize}$ and that this size should be known at shader compilation time. `ElementsPerInvocation` is the number of elements in the output that a single thread must compute. It is equivalent to twice the number of virtual threads each thread launched emulates. 
+
+For $\text{ElementsPerInvocation} = 2$, for example, that'd be a single virtual thread per thread, which essentially is just running the best algorithm (using shared memory and subgroup ops for shuffles). For $\text{ElementsPerInvocation} = 2^k$ you'd have $2^{k-1}$ virtual threads per thread and $k-1$ stages where you must go through global memory because of thread emulation, and only the rest of the stages would use shared memory/subgroup ops for shuffles. 
+
+You can of course decompose $N = 2^k$ as different products of $\text{ElementsPerInvocation}$ and $\text{WorkgroupSize}$. Our rule of thumb is to minimize $\text{ElementsPerInvocation}$ when possible (remembering it must be at least $2$) and only increasing it if the $\text{MaxWorkgroupSize}$ won't allow you to keep it smaller. This is to avoid going through global memory when possible. 
+
+
+## Optimization 4: Better occupancy and access latency with spilling preloading
+
+To compute a per-channel spectrum in the Bloom example, we have a few different strategies:
+
+One would be to load each channel at a time, compute the FFT for that channel, and store it. This sounds natural,, and it's what we do in the Bloom example for intermediate FFTs. 
+But for the first axis FFT, the problem is that each thread is essentially sampling the same spots in a texture once per channel, with a long computation (the FFT of the channel) in the middle , so the parts of the texture accessed are unlikely to be cached between loads (because of other workgroups working on the same SM). The same happens at the end, when doing IFFT along the first axis. This results in three texture writes per pixel, each time writing a different channel (AND having to retrieve the previous write before the next, since you can't just write to a single channel of a texture).
+
+A different strategy would be to load all channels at once, having the values for all channels resident in registers. Although this means we're using more registers per thread, these can be spilled to global memory in the worst case, resulting in only some accesses to global memory.
+
+Now that we have preloaded all channels, another important decision must be made: do we compute the FFT channel by channel or all at once? You see, just like you can define `complex_t<float32_t>` or similar, you could use `complex_t<vector<float32_t, 3> >` with operations done on a per-element basis. The number of operations remains the same for either three FFTs with `complex_t<float32_t>` or a single FFT with `complex_t<vector<float32_t, 3> >`, but what doesn't remain the same is the memory and memory barriers required to do so. 
+
+Global memory accesses and subgroup shuffle ops remain the same in both versions. What's different is the behaviour regarding barriering.
+
+If you used `complex_t<float32_t>` you'd have to do three FFTs, which at each stage where memory gets traded using shared memory incurs in a barrier. If you used `complex_t<vector<float32_t, 3> >` instead, you'd have a third of the shuffles (meaning a hird of the barriers), trading three times as much memory on each. Sound good? Well the thing is that this requires triple the amount of shared memory pero workgroup. You can spill registers, but not shared memory, so this would effectively kill occupancy.
+
+In our bloom example, we choose to overbarrier but keep shared memory usage per workgroup lower.
+
+This will become more clear when we talk about the Accessor pattern later on, but another important part of preloading is that (except for register spilling) we never need to go through global memory when doing an FFT, even if $\text{ElementsPerInvocation} > 2$. 
+
+## Optimization 5: Dynamic Kernel rescaling with a Polyphase LUT
+
+So one thing we did not discuss so far is how to perform the Hadamard product of spectra when we talked about FFT convolution. To perform such a matrix, you'd need both spectra to be matrices of the same exact dimensions.
+But the result of the FFT of the image is of dimensions `roundUpToPoT(imageDimensions+kernelDimensions)` while the result of the FFT of the kernel has size `roundUpToPoT(kernelDimensions)`. 
+
+`roundUpToPoT` means to round each dimension up to the next power of two (remember this is needed by Cooley-Tukey) and the `+ kernelDimensions` is there to account for padding to avoid wraparound artifacts.
+To simplify the discussion a bit we'll also assume `kernelDimensions` is a square with PoT-side length.
+
+So, how do we compute the Hadamard product? One thing you could do is create a `roundUpToPoT(imageDimensions+kernelDimensions)` image which has a copy of the kernel in the center and zero padding all around it, 
+compute the spectrum of this and multiply the spectrum of the padded image with it. This works, and is probably optimal if you're considering running Bloom as a post-processing effect for a fixed-size image. 
+
+However, it has a bigger memory footprint than our approach (presented in the next paragraph): this method has one padded kernel image per value of `roundUpToPoT(imageDimensions+kernelDimensions)`. To run this with images of varying 
+sizes (where you might get different rounded up to PoT sizes) you'd need a different copy of the padded kernel per each possible value.
+
+Our approach in Nabla is more aligned with other uses cases we had for the FFT. What we do is compute the spectrum of the kernel as-is (no padding or anything) and keep it resident in GPU memory.
+Then, once we have the spectrum of the image, to compute the Hadamard product we simply rescale the kernel's spectrum to `roundUpToPoT(imageDimensions+kernelDimensions)` by sampling it as a texture: to compute the 
+product at pixel $p$, we get $p$'s `uv` coordinates in the image (essentially just divide $p$ by `roundUpToPoT(imageDimensions+kernelDimensions)`) and sample the kernel spectrum at those coordinates. 
+
+What this allows for is to keep a single copy of the spectrum resident in GPU memory, with no padding (so it's as small as it can be) and reuse it for any convolutions we might want to perform.
+
+This is essentially a rough type of polyphase filter. Arkadiusz's video does give a bit of insight into this as well. This case in particular, however, is special. Since we assume (and ir our Bloom example, require)
+the kernel to have PoT long sides (and square, but for this discussion it could also be rectangular) it turns out that `roundUpToPoT(imageDimensions+kernelDimensions)` is exactly an integer multiple of `kernelDimensions` 
+(of course, it might be a different multiple per axis). Let's assume   
+
+$\text{roundUpToPoT}(\text{imageDimensions}+\text{kernelDimensions}) = (N_1, N_2) \cdot \text{kernelDimensions}$. 
+
+$N_1$ and $N_2$ also turn out to be PoT, but that's irrelevant.
+
+What this all means is that the end result is not just a polypahse filter, but rather a pure upsampling process. Our spectral interpolation is exacly equivalent to upsampling with a tent filter: that is, the result 
+is exactly the same as introducing $N_1 - 1$ zeros between samples along the $x$-axis, $N_2 - 1$ zeros between samples along the $y$-axis, and then convolving the result with a tent filter (the linear interpolation 
+performed by HW samplers is exactly the same as a convolution with a tent).
+
+This is very neat! It means we get no spatial aliasing (since it's integral upsampling). In an upsampling process (also called interpolation) the convolution with a filter after the expansion (filling with zeros) is meant 
+to get rid of the spatial repetition of the kernel caused by the expansion. If this were a perfect filter, such as $\text{sinc}$, this would be a spatial product with a box that would exactly enclose the central copy 
+of the kernel and annihilate the rest. 
+
+The interpolation with a tent filter, however, is equivalent to a product in the spatial domain with a $\text{sinc}^2$ function. This means that repeated copies of the kernel get annihilated, although not perfectly: copies of the kernel overlapping with secondary lobes of the 
+$\text{sinc}^2$ will get scaled down but not completely annihilated. This causes ringing artifacts. For example, here's the result of our convolution against a kernel of size `256x256` (using mirror padding to get as much luminance as possible):
+
+![Ringing](convolved_256.png "Ringing")
+
+It might be hard to see, but there is some ringing going on in these areas:
+
+![Ringing Showcase](convolved_ring.png "Ringing circled")
+
+To better showcase this, here's the same image with a white point of $0.25$:
+
+![Ringing Whitepoint](ring_whitepoint.png "Ringing whitepoint")
+
+Look at the areas I circled in red before, and compare that to the same convolution performed with the other technique we mentioned at the start of this section (the one that first padded the kernel with zeros and 
+then computed the spectrum of that), with the whitepoint set to $0.25$ as well:
+
+![No ringing](noring.png "No ringing")
+
+Here's how I visualize this in my mind: copies of the kernel pasted over the very bright pixels of the Sun (and all copies of the kernel everywhere actually, but these would be the relevant ones here) are actually 
+at first (before the product with a $\text{sinc}^2$) repeated all over the image. But when the product with the $\text{sinc}^2$ happens:
+
+![Sinc square](sinc.png "Sinc squared graph")
+
+you can imagine that the big central lobe gets multiplied against the central copy, preserving it (especially towards the center, killing it off towards the edges). But the next copy gets multiplied against the secondary lobe (the one circled in red) and doesn't get completely annihilated (again, especially important towards the centre of the copy, where the kernel concentrates most luminance),
+causing ringing artifacts. 
+
+To avoid this ringing, you can use a bigger kernel, since that makes $(N_1, N_2)$ smaller, meaning less zeros in the upsampling process, leading to less spatial repetition, leading to a more "compact" $\text{sinc}^2$,
+which has smaller secondary lobes. Here's for example the result of doing our convolution against a kernel of size `512x512`, same whitepoint:
+
+![Less ringing](less_ring.png "Less ringing")
+
+Some ringing still survives, but it's much less noticeable than before. Here's that image with whitepoint   
+$1$, in case you want to compare it against the one we did with a `256x256` kernel:
+
+![512](convolved_512.png "With a 512 kernel")
+
+### Dynamic PSF Sharpening
+
+Given the shape of the PSF we consider in this example, spatially rescaling the kernel is pointless. I have shown you an image of the kernel with a low whitepoint, but its actual distribution is kind of a very sharp 
+Laplacian, so something like this: 
+
+![Laplacian](laplacian.png "Laplacian distribution")
+
+although much sharper. The kernel isn't perfectly radially symmetric with this distribution, but it's similar. A property such distributions have is that if you normalize them after rescaling, they end up
+very similar to how they started. This is why we say that spatial rescaling is pointless, since we want our kernel to be normalized so the convolution does not affect luminance. 
+
+What we can do, however, is dynamic sharpening. We achieve this by interpolating the kernel with a dirac delta (the identity of the convolution). This is what we do in the video at the start of this article: it's a simple $\cos(t)^2$ interpolation. 
+
+Interpolation is done in the spectral domain. This is because   
+$f * ((1-t) \cdot k + t \cdot \delta)$ becomes  
+$F \cdot ((1-t)\cdot K + t \cdot \Delta)$ in the spectral domain.
+
+An expression for $\Delta$ is easily found: It's just a matrix of ones (since it's the identity of the Hadamard product).
+
+## Optimization 7: Which dimension to run first? Dont pad to PoT before you run!
+
+To elaborate on this point, I'm going to give the exact numbers for the Bloom example. The convolution of our `1280x720` image of balls against the `256x256` kernel requires us to get the spectrum of a   
+`2048x1024 = roundUpToPoT(1280x720 + 256x256)` sized image. 
+
+The naive approach, even with our real FFT packing trick along the first axis, would have us run  
+$1024$ FFTs of length $1024$ along the $y$-axis (packing two consecutive columns together) followed by $512$ FFTs of length $2048$ along the $x$-axis (remember that we keep half of each column, so if 
+they're $1024$ long we actually keep $512$ to run the FFT along the next axis), if doing the FFT along the $y$-axis first. 
+
+Doing $x$-axis first, same math yields having to do $512$ FFTs of length $2048$ along the $x$-axis, followed by $1024$ FFTs of length $1024$ along the $y$-axis. So both are about the same. 
+
+But we can do better. Let's think about the case in which we run an FFT along the $y$-axis first. Out of the $1024$ FFTs we launch, $384$ are redundant. This is because there's   
+$640 = \frac {1280} 2$ actual packed columns in our image.  
+
+$192 = \frac {384} 2$ packed columns to each side are in the padding area. Running an FFT along these columns either yields $0$ (if we use 
+zero padding) or can be retrieved later since it's going to be exactly equal to one of the actual packed columns we run an FFT along. 
+
+So when running the FFT along the $y$-axis, we only need to run $640$ FFTs of length $1024$ (we still need to pad along the $y$-axis). The result of this operation will yield $1280$ columns of length $512$. 
+
+Similarly, in the next step when running an FFT along the $x$-axis, we will need to run $512$ (this time we can't pack them since they're already complex) FFTs of length $2048$. The padding along the $y$-axis 
+was done automatically by our HW sampler, but this time we must do the padding by hand, either setting zeros or retrieving mirrored values in the padding area. 
+
+So that's  $640$ FFTs of length $1024$ followed by $512$ FFTs of length $2048$ if we run $y$-axis first. The same math yields $360$ FFTs of length $2048$ followed by $1024$ FFTs of length $1024$ if 
+doing $x$-axis first. 
+
+Which one is better? Well in this particular case, $y$-axis first takes about $0.57 \; \text{ms}$ to run on my 4060 (measured with Nsight Systems), while $x$-axis first takes about $0.73 \; \text{ms}$. That's a pretty big difference! 
+
+If we change the kernel to a size of `512x512`, then doing $y$-axis first ends up doing $640$ FFTs of length $2048$ followed by $1024$ FFTs of length $2048$. Doing $x$-axis first, on the other hand, does $360$ FFTs of length $2048$ followed by $1024$ FFTs of length $2048$. 
+
+Unlike the previous case in which the FFTs to compare are all different-sized, this particular case is easier to analyze: $y$-axis first runs $1664$ FFTs of length $2048$ in total while $x$-axis first runs $1384$ FFTs of the same length, so it's reasonable to expect that $x$-axis first performs better in this case. Indeed, $x$-axis first takes about $1.04 \; \text{ms}$ to run, while $y$-axis first takes about $1.45 \; \text{ms}$.
+
+
+
