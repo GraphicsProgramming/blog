@@ -397,5 +397,269 @@ If we change the kernel to a size of `512x512`, then doing $y$-axis first ends u
 
 Unlike the previous case in which the FFTs to compare are all different-sized, this particular case is easier to analyze: $y$-axis first runs $1664$ FFTs of length $2048$ in total while $x$-axis first runs $1384$ FFTs of the same length, so it's reasonable to expect that $x$-axis first performs better in this case. Indeed, $x$-axis first takes about $1.04 \; \text{ms}$ to run, while $y$-axis first takes about $1.45 \; \text{ms}$.
 
+## Keeping things modular with Nabla
 
+[HLSL2021](https://devblogs.microsoft.com/directx/announcing-hlsl-2021/) introduced a bunch of additions to the language. In particular, with it we got access to template metaprogramming. This is huge, since 
+this lets us write more generic and maintanable code. Before I show you some examples, let's talk a bit more about our HLSL library. 
 
+### The Nabla HLSL library
+
+One of the highlights of Nabla is our HLSL library: most of the library is code that's shared between the host and the device, so you can access the same functions and structs from both. We made a lot of HLSL equivalents 
+for many of CPP's `std` headers, such as `<type_traits>`, `<limits>`, `<algorithm>`, `<functional>`, `<tgmath>` and `<complex>`. We also have `<concepts>` in HLSL, which we've been using abundantly. 
+
+A lot of this is only made possible by using our own preprocessor (Boost.Wave) which gives us access to stuff like reflection. 
+
+This adds a lot of functionality of the host to the device, but we also have some device code that can run on the host: for example, we implemented a lot of SPIR-V intrinsics in CPP so you can use them on the host as well. 
+
+Besides the added functionality on both sides, this is really good for testing and debugging: as long as your code can be compiled for both host and device, you can debug the code running on your GPU by running it on the CPU,
+or design unit tests that run on the CPU. 
+
+### Running an FFT in Nabla
+
+Before that, let's go over how to use the FFT in Nabla on the GPU. This will be a walkthrough of how to set up the code to run an FFT and an explanation of most stuff found in the FFT library (all the structs detailed here are in the workgroup namespace). The first thing to clarify is that since we're using Cooley-Tukey, we ONLY perform FFTs on power-of-two (PoT for short) sized arrays. If your array isn't PoT-sized, make sure to pad the array in whichever way you see fit up to a power of two.
+
+To run an FFT, you need to call the FFT struct's static `__call` method. You do this like so: 
+
+```cpp
+FFT<Inverse, ConstevalParameters>::__call<Accessor, SharedMemoryAccessor>(Accessor accessor, SharedMemoryAccessor sharedMemoryAccessor);
+```
+
+`Inverse` indicates whether you're running a forward or an inverse FFT
+
+`ConstevalParameters` is a struct created from three compile-time constants: `ElementsPerInvocationLog2`, `WorkgroupSizeLog2` and `Scalar`.  
+
+`Scalar` is just the scalar type for the complex numbers involved.  
+
+`WorkgroupSizeLog2` is self-explanatory, and `ElementsPerInvocationLog2` is the (log of) the number of elements of the array each thread is tasked with computing, with the total `ElementsPerInvocation` being the length `FFTLength` of the array to perform an FFT on (remember it must be PoT) divided by the workgroup size used.   
+
+This makes both `ElementsPerInvocation` and `WorkgroupSize` be PoT.   
+IMPORTANT: You MUST launch kernel with a workgroup size of `ConstevalParameters::WorkgroupSize` 
+
+`Accessor` is an accessor to the array. It MUST provide the methods   
+```cpp
+template <typename AccessType> 
+void set(uint32_t idx, AccessType value);
+
+template <typename AccessType> 
+void get(uint32_t idx, NBL_REF_ARG(AccessType) value);
+```   
+
+These methods need to be able to be specialized with `AccessType` being `complex_t<Scalar>` for the FFT to work properly. Furthermore, if doing an FFT with $\text{ElementsPerInvocationLog2}>1$, it MUST also provide a   
+`void memoryBarrier()` method. If not accessing any type of memory during the FFT, it can be a method that does nothing. Otherwise, it must do a barrier with `AcquireRelease` semantics, with proper semantics for the type of memory it accesses. 
+
+`SharedMemoryAccessor` is an accessor to a shared memory array of `uint32_t` that MUST be able to fit `WorkgroupSize` many complex elements (one per thread).  
+ It MUST provide the methods   
+```cpp
+template <typename IndexType, typename AccessType> 
+void set(IndexType idx, AccessType value);  
+
+template <typename IndexType, typename AccessType> 
+void get(IndexType idx, NBL_REF_ARG(AccessType) value); 
+
+void workgroupExecutionAndMemoryBarrier();
+```     
+
+The templates are there in case you want to use the same accessor in other ways, but for usage with FFT those methods MUST be able to be specialized with 
+both `IndexType` and `AccessType` being `uint32_t`.   
+`workgroupExecutionAndMemoryBarrier()` can be any method that ensures that whenever threads shuffle via the shared memory, all threads have reached the barrier after writing their values and before reading the values they need to get from it. In our examples it's usually a `glsl::barrier()`.
+
+Furthermore, you must define the method `uint32_t3 nbl::hlsl::glsl::gl_WorkGroupSize()` (usually since we know the size we will launch at compile time we make this return values based on some compile-time known constants). This is because of an issue / bug with DXC caused by SPIR-V allowing both compile-time and runtime workgroup sizes. 
+
+With all of that said, here's an example of an FFT being ran:
+
+```cpp
+using namespace nbl::hlsl;
+
+using ConstevalParameters = workgroup::fft::ConstevalParameters<ElementsPerInvocationLog2, WorkgroupSizeLog2, scalar_t>;
+
+groupshared uint32_t sharedmem[ ConstevalParameters::SharedMemoryDWORDs];
+
+// Users MUST define this method for FFT to work
+uint32_t3 glsl::gl_WorkGroupSize() { return uint32_t3(uint32_t(ConstevalParameters::WorkgroupSize), 1, 1); }
+
+struct SharedMemoryAccessor 
+{
+  //...
+};
+struct Accessor
+{
+  // ...
+};
+
+[numthreads(ConstevalParameters::WorkgroupSize,1,1)]
+void main(uint32_t3 ID : SV_DispatchThreadID)
+{
+	Accessor accessor = Accessor::create(pushConstants.deviceBufferAddress);
+	SharedMemoryAccessor sharedmemAccessor;
+
+	// FFT
+
+	workgroup::FFT<false, ConstevalParameters>::template __call<Accessor, SharedMemoryAccessor>(accessor, sharedmemAccessor);
+    // We just used the sharedmemAccessor, and we're about to use it again. Therefore, we must block here to ensure all subgroups 
+    // have made their last read from shared memory in the algorithm above. Otherwise, we could introduce a race condition.
+	sharedmemAccessor.workgroupExecutionAndMemoryBarrier();
+	workgroup::FFT<true, ConstevalParameters>::template __call<Accessor, SharedMemoryAccessor>(accessor, sharedmemAccessor);	
+}
+```
+
+Given compile-time known constants `ElementsPerInvocationLog2`, `WorkgroupSizeLog2`, and `scalar_t` (defined elsewhere) we give an alias to the `workgroup::fft::ConstevalParameters` struct for clarity. 
+The constexpr `ConstevalParameters::SharedMemoryDWORDs` tells us the size (in number of `uint32_t`s) that the shared memory array must have, so we use that to declare the array. Then, we define the 
+`uint32_t3 glsl::gl_WorkGroupSize()` method. 
+
+We skip the definitions for the methods in the accessors, just assume the `SharedMemoryAccessor` writes and reads from 
+the shared memory array and the `Accessor` reads and writes from an array we have already filled with the data we want to perform an FFT on. 
+
+Then, we launch `ConstevalParameters::WorkgroupSize` many threads in a 
+workgroup, instantiate the accessors and then run FFTs like shown above. The first is a Forward FFT and the second is an Inverse FFT. In the code above I'm running one after the other to showcase something important:
+if you're going to use the shared memory after an FFT (in this case it's going to be used to run another FFT), you MUST do an execution and memory barrier like above. This is because we don't immediately block execution after the first FFT is done, so that if your threads need to do some work after the first FFT they can do so unbothered, but access to shared memory should be barriered if needed after the FFT.
+
+The result of either FFT is actually exactly the same, save for normalization. The Inverse FFT divides the resulting array by $\text{FFTLength}$ at the end.
+
+### Static Polymorphism in Nabla: the Accessor pattern 
+
+One of the great things of template metaprogramming is that it allows us to decouple behaviour as a way to generalize code and avoid overspecializing. For example, say you're writing an algorithm that that has to read and write some data. 
+This data, however, could be anywhere: on the GPU, you could be feeding the algo data from an image or buffer through a descriptor, or maybe you're using BDA and just passing a device address. On the CPU, the same applies: 
+maybe you're providing data from a vector, or from a hashmap or something else. 
+
+The algorithm itself, however, doesn't need to know any of this, it just needs to get and/or set data. That's where Accessors come in handy: they're a way of abstracting this process of getting and setting data so that the algorithm itself is separated from the data acquisition process, while providing reference/pointer-like behaviour.
+
+In some cases it can even be used to create efficient specializations of an algorithm without having to rewrite anything. Such an example is our
+real FFT specialization, of which I'll talk about in a bit.
+
+Both the `Accessor` and the `SharedMemoryAccesor` follow a similar convention. Part of that convention includes an important assumption about Accessors: they should be "clean" and "unused". This means that to ensure
+the algorithm's correctness, there should be no aliasing (no one else should have access to the same memory as long as the algorithm is doing its thing). 
+
+If you do in-fact optimize/resuse/alias between two algorithms (or invocations of same algorithm), then you need to worry about the potential overlap and ensure no data race via appropriate synchronisation primitives to ensure execution and memory dependencies between re-users. This is exemplified in our FFT example usage earlier: between two FFT passes, there's a barrier to ensure all threads have caught up to their work and there's no chance of a data race inbetween usages.
+
+We limit the rest of this discussion to the `Accessor` in our FFT, to exemplify the flexibility this patterns gives us. The `SharedMemoryAccessor` is not as flexible due to the role it has.
+
+In the FFT, the Accessor has different behaviour according to $\text{ElementsPerInvocation}$. If $\text{ElementsPerInvocation}=2$ then the Accessor is only used to read data in at the start and write it out at the end. This allows for the FFT to be done out-of-place: you don't necessarily have to make the accessor read and write to the same place. 
+
+If $\text{ElementsPerInvocation}>2$, however, then the Accessor is also used as a way to "trade" elements between threads when doing "bigger-than-Workgroup-sized" FFTs so the FFT MUST be done in-place. This is also why in this case it has to provide a nontrivial `memoryBarrier()`. 
+
+Now let's go over the code in [the Bloom example](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/tree/master/28_FFTBloom) to show examples of other types of flexibility this pattern has.
+
+The code in the Bloom example uses [preloaded accessors](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/fft_common.hlsl#L42), meaning that they read in all their elements into registers before running the FFT and write them out themselves after the FFT. This obviously decreases occupancy if preloading multiple channels or if $\text{ElementsPerInvocation}>2$ when loading a single channel. But we get different benefits. One of them is that there's no `memoryBarrier()` calls that matter (which is why in this case we specify it can be a method that does nothing).
+
+In all cases, the same flexibility as before stays: either when preloading before the FFT or unloading afterwards, you get to choose where they read from and where they write to. For example, the [first axis FFT](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/image_fft_first_axis.hlsl#L31) reads from an image and writes to a buffer, the [second axis FFT](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/fft_convolve_ifft.hlsl#L59) (which also performs product and IFFT in the same shader) does buffer->buffer, and the [last IFFT](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/image_ifft_first_axis.hlsl#L37) does buffer->image.
+
+On the first axis FFT, preloading all channels at once means we only have to read each position in the image once, opposed to three times if loading one channel at a time. On all FFTs, using preloaded accessors means that "bigger-than-Workgroup-sized" FFTs don't go through global memory but instead stay in registers. 
+
+Finally, preloaded accessors also allow us to implement an efficient specialization of a real-valued FFT. We can preload two scanlines at once using the packing trick introduced earlier and run the FFT. Then after the FFT is done, since we're using a preloaded accessor we don't write straight to the buffer, [all writes stay in the Accessor's registers](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/fft_common.hlsl#L45). If we did, we'd be wasting twice the space. Instead, right after the FFT we can make the preloaded accessor's unload method store only the lower half of the DFT to the buffer. 
+
+You can see that with the same FFT code we can implement a lot of different micro-optimizations or specializations of the algorithm just by modifying the behaviour the Accessor provides. This is the magic of Static Polymorphism!
+
+## More Accessor Magic: building large utilities from small incremental blocks
+
+Static Polymorphism is also what enables the use of virtual threading in some algorithms. Once again let's show how this works in the case of the FFT. [Here's the code](https://github.com/Devsh-Graphics-Programming/Nabla/blob/ae5dbadedc8817b4aebea4a5712887035472d7a8/include/nbl/builtin/hlsl/workgroup/fft.hlsl#L448) for the FFT when $\text{ElementsPerInvocation}>2$, but you can refer to our discussion above. Here's the diagram for the case we had with 4 virtual threads for an FFT of length $8$:
+
+![DIF diagram](dif_diagram_color.png "The same diagram as before")
+
+When running such an FFT, first we did the butterflies in the first stage per virtual workgroup, and then we run one Workgroup-sized FFT per virtual workgroup. To do this, we recycle the code we have for the Workgroup-sized FFT by calling the code for it but passing an Offset Accessor. For example in our diagram, the full FFT would be done by calling   
+`FFT<false, fft::ConstevalParameters<2, 1, Scalar>::__call<Accessor, SharedMemoryAccessor>(accessor, sharedmemAccessor)`. This method will first compute the butterflies in stage 1, where each thread will perform one butterfly per virtual workgroup. 
+
+Then, it's going to compute a Workgroup-sized FFT per veirtual workgroup. To achieve this, it's going to call   
+`FFT<false, fft::ConstevalParameters<1, 1, Scalar>::__call<OffsetAccessor, SharedMemoryAccessor>(offsetAccessor, sharedmemAccessor)` where `offsetAccessor` can be built from the original `Accessor`. 
+
+The first such FFT will run an FFT on elements indexed $0$ through $3$, which can be done with an `OffsetAccessor` with $0$ offset. Then, to run the second FFT on elements indexed $4$ through $7$, it's going to use an `OffsetAccessor` with an offset of $4$. Essentially, this is allowing us to incrementally build larger utilities by exploiting the genericity of the smaller ones. 
+
+## FFT Utils
+
+### Figuring out the storage required for an FFT
+
+We provide the functions  
+```cpp
+template <uint16_t N>
+uint64_t getOutputBufferSize(
+    uint32_t numChannels, 
+    vector<uint32_t, N> inputDimensions,
+    uint16_t passIx,
+    vector<uint16_t, N> axisPassOrder,
+    bool realFFT,
+    bool halfFloats
+)
+
+template <uint16_t N>
+uint64_t getOutputBufferSizeConvolution(
+    uint32_t numChannels,
+    vector<uint32_t, N> inputDimensions,
+    vector<uint32_t, N> kernelDimensions,
+    uint16_t passIx,
+    vector<uint16_t, N> axisPassOrder,
+    bool realFFT,
+    bool halfFloats
+)
+```  
+in the `fft` namespace which yield the size (in bytes) required to store the result of an FFT of a signal with `numChannels` channels of size `inputDImensions` after running the FFT along the axis `axisPassOrder[passIx]` (if you don't 
+provide this order it's assumed to be `xyzw`). This assumes that you don't run or store any unnecessary FFTs, since with wrapping modes it's always possible to recover the result in the padding area (sampling outside of $[0,1)$ along some axis).
+
+It furthermore takes an argument `realFFT` which if true means you are doing an FFT on a real signal AND you want to store the output of the FFT along the first axis 
+in a compact manner (knowing that FFTs of real signals are conjugate-symmetric). By default it assumes your complex numbers have `float32_t` scalars, `halfFloats` set to true means you're using `float16_t` scalars.
+
+`getOutputBufferSizeConvolution` furthermore takes a `kernelDimensions` argument. When convolving a signal against a kernel, the FFT has some extra padding to consider, so these methods are different.
+
+### Figuring out compile-time parameters
+We provide a   
+```cpp
+OptimalFFTParameters optimalFFTParameters(uint32_t maxWorkgroupSize, uint32_t inputArrayLength); 
+```    
+function in the `workgroup::fft` namespace, which yields possible values for `ElementsPerInvocationLog2` and `WorkgroupSizeLog2` you might want to use to instantiate a `ConstevalParameters` struct, packed in a `OptimalFFTParameters` struct. 
+
+By default, we prefer to use only 2 elements per invocation when possible, and only use more if   
+$2 \cdot \text{maxWorkgroupSize} < \text{inputArrayLength}$. This is because using more elements per thread either results in more accesses to the array via the `Accessor` or, if using preloaded accessors, it results in lower occupancy. 
+
+`inputArrayLength` can be arbitrary, but please do note that the parameters returned will be for running an FFT on an array of length `roundUpToPoT(inputArrayLength)` and YOU are responsible for padding your data up to that size. 
+
+You are, of course, free to choose whatever `ConstevalParameters` are better for your use case, this is just a default.
+
+### Indexing
+We made some decisions in the design of the FFT algorithm pertaining to load/store order. In particular we wanted to keep stores linear to minimize cache misses when writing the output of an FFT. As such, the output of the FFT is not in its normal order, nor in bitreversed order (which is the standard for Cooley-Tukey implementations). Instead, it's in what we will refer to Nabla order going forward. The Nabla order allows for coalesced writes of the output, and is essentially the "natural order" of the output of our algorithm, meaning it's the order of the output that doesn't require incurring in any extra ordering operations.
+
+This whole discussion applies to our implementation of the forward FFT only. We have not yet implemented the same functions for the inverse FFT since we didn't have a need for it. A discussion of how to compute the Nabla order for the forward FFT and a proof for it can be found in the [maintainers section of the FFT Readme](https://github.com/Devsh-Graphics-Programming/Nabla/blob/master/include/nbl/builtin/hlsl/fft/README.md#bit-ordering-of-the-nabla-fft).
+
+The result of a forward FFT will be referred to as an $\text{NFFT}$ (N for Nabla). This $\text{NFFT}$ contains the same elements as the (properly-ordered) $\text{DFT}$ of the same signal, just in Nabla order. We provide a struct
+```cpp
+template <uint16_t ElementsPerInvocationLog2, uint16_t WorkgroupSizeLog2>
+struct FFTIndexingUtils;
+```   
+that automatically handles the math for you in case you want to go from one order to the other. It provides the following methods:
+
+* `uint32_t getDFTIndex(uint32_t outputIdx)`: given an index $\text{outputIdx}$ into the $\text{NFFT}$, it yields its corresponding $\text{freqIdx}$ into the $\text{DFT}$, such that 
+
+    $\text{DFT}[\text{freqIdx}] = \text{NFFT}[\text{outputIdx}]$
+* `uint32_t getNablaIndex(uint32_t freqIdx)`: given an index $\text{freqIdx}$ into the $\text{DFT}$, it yields its corresponding $\text{outputIdx}$ into the $\text{NFFT}$, such that 
+
+    $\text{DFT}[\text{freqIdx}] = \text{NFFT}[\text{outputIdx}]$. It's essentially just the inverse of the previous method.
+* `uint32_t getDFTMirrorIndex(uint32_t freqIdx)`: A common operation you might encounter using FFTs (especially FFTs of real signals) is to get the mirror around the middle (Nyquist frequency) of a given frequency. Given an index $\text{freqIdx}$ into the $\text{DFT}$, it returns a $\text{mirrorIndex}$ which is the index of its mirrored frequency, which satisfies the equation 
+
+    $\text{freqIdx} + \text{mirrorIndex} = 0 \mod \text{FFTLength}$. Two elements don't have proper mirrors and are fixed points of this function:   
+    the Zero $($ index $0$ in the $\text{DFT})$ and   
+    Nyquist $($ index $\frac {\text{FFTLength}} 2$ in the $\text{DFT})$ frequencies. 
+* `uint32_t getNablaMirrorIndex(uint32_t outputIdx)`: Yields the same as above, but the input and output are given in Nabla order. This is not to say we mirror $\text{outputIdx}$ around the middle frequency of the Nabla-ordered array (that operation makes zero sense) but rather this function is just $\text{getNablaIndex}\circ\text{getDFTMirrorIndex}\circ\text{getDFTIndex}$. That is, get the corresponding index in the proper $\text{DFT}$ order, mirror THAT index around Nyquist, then go back to Nabla order. 
+
+For the the next struct and its functions, let's give an example of where you might need them first. Suppose you packed two real signals $x, y$ as $x + iy$ and did a single FFT to save compute. Now you might want to unpack them to get the FFTs of each signal. If you had the $\text{DFT}$ in the right order, unpacking requires to have values $\text{DFT}[T]$ and $\text{DFT}[-T]$ to unpack the values for each FFT at those positions. 
+
+Suppose as well that you are using preloaded accessors, so the whole result of the FFT is
+currently resident in registers for threads in a workgroup. Each element a thread is currently holding is associated with a 
+unique $\text{globalElementIndex}$, and to unpack some value a thread needs to know both $\text{NFFT}[\text{globalElementIndex}]$ and $\text{NFFT}[\text{getNablaMirrorIndex}(\text{globalElementIndex})]$. 
+
+Usually what you'd want to do is iterate over every $\text{localElementIndex}$ 
+(which is associated with a $\text{globalElementIndex}$), get its mirror and do an unpack operation (an example of this is done 
+in the Bloom example). To get said mirror, we do a workgroup shuffle: with a shared memory array $\text{A}$, each thread of thread ID $\text{threadID}$ in a workgroup writes an element at $\text{A}[\text{threadID}]$ and reads a value from $\text{A}[\text{otherThreadID}]$, where 
+$\text{otherThreadID}$ is the ID of the thread holding the element $\text{NFFT}[\text{getNablaMirrorIndex}(\text{globalElementIndex})]$ (again, see
+the Bloom example for an example of this). 
+
+This works assuming that each workgroup shuffle is associated with the same 
+$\text{localElementIndex}$ for every thread - that is, every thread goes over its elements in the same order at the same time. The question now becomes, how does a thread know which value it has to send in this shuffle?
+
+The functions  
+```cpp
+NablaMirrorLocalInfo FFTMirrorTradeUtils::getNablaMirrorLocalInfo(uint32_t globalElementIndex);   
+
+NablaMirrorGlobalInfo FFTMirrorTradeUtils::getNablaMirrorGlobalInfo(uint32_t globalElementIndex);
+```   
+ handle this for you: given a $\text{globalElementIndex}$, `getNablaMirrorLocalInfo` returns a struct with a field `otherThreadID` (the one we will receive a value from in the shuffle) and a field `mirrorLocalIndex` which is the $\text{localElementIndex}$ *of the element we should write to the shared memory array*. 
+
+`getNablaMirrorGlobalInfo` returns the same info but with a `mirrorGlobalIndex` instead, so instead of returning the $\text{localElementIndex}$ of the element we have to send, it returns its $\text{globalElementIndex}$. 
+
+In case this is hard to follow, you can copy the template function we use to trade mirrors around in `fft_mirror_common.hlsl` in the Bloom example. 
