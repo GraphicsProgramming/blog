@@ -102,7 +102,7 @@ As you can see with the "Sun" ball there, there's an abnormal amount of light to
 
 ![Mirror Padding](mirror_padding.png "Full convolved image with mirror padding")
 
-Zero padding is much nicer and it's what's used in the video at the start of this article. Zero padding has some lost luminance (since light spilling over to the padding zone is not compensated for) and given the shape of the PSF, pixels near the border lose much more luminance, which can turn the borders of the image darker. However, this is barely noticeable in practice and we avoid artifacts like the one showcase for mirror padding. Furthermore, autoexposure methods handle the lost luminance in the image. 
+Zero padding is much nicer and it's what's used in the video at the start of this article. We do lose some luminance (since light spilling over to the padding zone is not compensated for) and given the shape of the PSF, pixels near the border lose much more luminance, which can turn the borders of the image darker. This vignetting effect is actually desirable (often added as a post-process), all the while avoiding artifacts like the one showcased for mirror padding. Furthermore, autoexposure methods handle the lost luminance in the image. 
 
 ![Zero Padding](zero_padded.png "Full convolved image with zero padding")
 
@@ -191,7 +191,7 @@ Here's a visualization of the DIF algorithm for a sequence of length $8$:
 
 ![DIF](dif_diagram.png "DIF Diagram")
 
-At each stage, each cross is called a butterfly. Each cross has two inputs (the two circles on the left) and two outputs (the two circles on the right). The outputs of the butterflies become inputs for the butterflies of the next stage. I won't go into too much detail of how each butterfly is computed ,go check out the FFT algorithm for those details if you're interested.
+At each stage, each cross is called a butterfly. Each cross has two inputs (the two circles on the left) and two outputs (the two circles on the right). The outputs of the butterflies become inputs for the butterflies of the next stage. I won't go into too much detail of how each butterfly is computed, go check out the FFT algorithm for those details if you're interested.
 
 An important thing to notice here is that each stage computes twice the FFTs as the previous stage, each with half the length, and terminating when the FFT is of length two with a single butterfly per FFT. In fact, this is exactly the point of the FFT: it's a divide-and-conquer type of algorithm. For example, if you take only the top half of the diagram starting from stage $2$ onwards, that's exactly a DIF diagram for a sequence of length 4. The same can be said about the lower half, of course. 
 
@@ -213,6 +213,8 @@ If that gets hard to visualize, here's the same diagram with each node colored a
 
 ![DIF](dif_diagram_color.png "DIF Diagram")
 
+Another thing we get is optimal reading: think about the colored diagram again. We launched $4$ threads to compute it, but what's interesting is how they read their elements in. First, they will reads all their "lo" elements for the first stage, which are elements $0$ through $3$, and then they will reads all their "hi" elements which are $4$ thorugh $7$. If the input is contiguous in memory, we get coalesced reads!
+
 ## Optimization 3: Exploiting Shared Memory in Compute, subgroup operations and overcoming maximum Workgroup sizes with Virtual Threads
 
 It turns out that not all FFTs are born equal: some are much easier to handle than others. The smallest size for an FFT we consider is $2 \cdot \text{SubgroupSize}$ where $\text{SubgroupSize}$ is the smallest possible number of threads your device can run in parallel in the same subgroup. We call such an FFT "Subgroup-sized".
@@ -221,11 +223,13 @@ Thus, each thread would hold two elements "lo", "hi" at all times and the DIF di
 
 This Subgroup-sized FFT is the fastest it can be, since all elements of the FFT can be made resident in registers and the element swaps we talked about in the previous section can be implemented as subgroup XOR shuffles, which is a SPIR-V intrinsic and modern GPUs usually have hardware to perform this shuffle operation fast.
 
-What happens for bigger-sized FFTs? Well, up to $2 \cdot \text{MaxWorkgroupSize}$ (where $\text{MaxWorkgroupSize}$ is, as the name implies, the maximum number of threads your device can launch in a single workgroup) you can still use the same exact DIF and DIT algorithms, but using shared memory to perform the shuffles. We call these FFTs "Workgroup-sized". We implement our own generic library for what we call workgroup shuffles: they perform the operation of swapping values between threads in the same workgroup, mimicking what subgroup shuffles do but at the workgroup level. 
+What happens for bigger-sized FFTs? Well, up to $2 \cdot \text{MaxWorkgroupSize}$ (where $\text{MaxWorkgroupSize}$ is the maximum number of threads you are willing to launch in a single workgroup) you can still use the same exact DIF and DIT algorithms, but using shared memory to perform the shuffles. We call these FFTs "Workgroup-sized". We implement our own generic library for what we call workgroup shuffles: they perform the operation of swapping values between threads in the same workgroup, mimicking what subgroup shuffles do but at the workgroup level. 
 
 To do this, we essentially have all threads in a workgroup write their elements to shared memory, barrier to make sure every thread is done writing, then make threads read their values from shared memory. It is slower than a subgroup shuffle since it involves barriering, but it's miles better in terms of latency than going through global memory. 
 
 We only use this when necessary: for example, if running a forward FFT on a sequence of length $4 \cdot \text{SubgroupSize}$, only the first stage needs to do such a barrier. At the second stage we run two Subgroup-sized FFTs, which we established can be done by a single subgroup with subgroup shuffling. In the case of an inverse FFT (go look at a DIT diagram if you want), this order would be reversed and only the last stage would need a workgroup shuffle.
+
+The advantages of using subgroup shuffles at the smallest level aren't just because of speed, but also because of the shared memory footprint: if you wanted to do such a shuffle fast using shared memory, you'd need to multiply the amount of shared memory by the number of elements in a shared memory bank to ensure every element ends up in a different bank, otherwise you WILL run into bank conflicts. So you avoid this memory/speed tradeoff altogether. 
 
 What about a "bigger than Workgroup"-sized FFTs? For example, take a sequence of length $4 \cdot \text{MaxWorkgroupSize}$. With our algorithm, we'd need $2 \cdot \text{MaxWorkgroupSize}$ threads in a single workgroup to achieve this. That's where virtual threading comes in!
 
@@ -242,7 +246,13 @@ This gives us an idea of how to group virtual threads together, because after st
 
 Computing stage $1$ is also easy: all butterflies are independent, even within the virtual workgroup, so you can compute them in any order. To keep things consistent we choose to emulate threads per virtual workgroup as well: in a first step, thread $0$ emulates the blue butterfly and thread $1$ the red butterfly (which are those for virtual threads $0$ and $1$) and then in a second step they do the same for the other two butterflies. 
 
-There is no element swap after butterflies though: virtual threads read in their inputs and write out their outputs to the same place they had read their inputs from. Element swapping now happens indirectly: in the next stage, virtual threads figure out which elements they need to read in to perform their computations.
+There is no element swap after butterflies though: virtual threads read in their inputs and write out their outputs to the same place they had read their inputs from. Element swapping now happens indirectly: in the next stage, virtual threads figure out which elements they need to read in to perform their computations. What's also nice is that all these writes (and the reads that come afterwards) are all coalesced as well. 
+
+Even better, all memory accesses done in stages previous to running a Workgroup-sized FFT are done in the same positions for different threads. What I mean by this is that even if virtual threads access different memory locations at each of these stages, *all memory locations accessed are owned the same thread*. You can see this in the diagram above: In stage $1$ thread $0$ owns memory locations $0,2,4,6$. After writing to these positions when computing the butterflies in that stage, it still owns those positions: virtual thread $0$ will need elements at positions $0$ and $2$ to run the Workgroup-sized FFT in stage $2$. 
+
+Element at position $2$ was computed by virtual thread $2$, but since that virtual thread is also emulated by thread $0$, it's the same thread that owns that memory location! In practice this means that these computations don't require any sort of barriers, syncs or used of shared memory. This allows us to employ an optimization which is to preload elements per thread - essentially reading the needed elements for each thread only once at the start and keeping them in local/private memory for the rest of the algorithm. This will be explained in more detail in the Statis Polymorphism section of this article.
+
+All of this implies that such FFTs use the same amount of shared memory as a Workgroup-sized one. The downside is either increased latency or decreased occupancy, depending on whether these reads/writes happen in global memory or local/private (preloaded) memory.
 
 This generalizes to arbitrary "bigger than Workgroup"-sized FFTs: Run all the butterflies in sequence in each "bigger than Workgroup" stage, reading and writing their inputs and outputs from and to the same place. Then once you get to Workgroup size, you can run the algorithm for Workgroup-sized FFTs that uses shared memory for faster swapping.
 
@@ -251,7 +261,7 @@ $N = \text{ElementsPerInvocation} \cdot \text{WorkgroupSize}$ and that this size
 
 For $\text{ElementsPerInvocation} = 2$, for example, that'd be a single virtual thread per thread, which essentially is just running the best algorithm (using shared memory and subgroup ops for shuffles). For $\text{ElementsPerInvocation} = 2^k$ you'd have $2^{k-1}$ virtual threads per thread and $k-1$ stages where you must go through global memory because of thread emulation, and only the rest of the stages would use shared memory/subgroup ops for shuffles. 
 
-You can of course decompose $N = 2^k$ as different products of $\text{ElementsPerInvocation}$ and $\text{WorkgroupSize}$. Our rule of thumb is to minimize $\text{ElementsPerInvocation}$ when possible (remembering it must be at least $2$) and only increasing it if the $\text{MaxWorkgroupSize}$ won't allow you to keep it smaller. This is to avoid going through global memory when possible. 
+You can of course decompose $N = 2^k$ as different products of $\text{ElementsPerInvocation}$ and $\text{WorkgroupSize}$. Our rule of thumb is to minimize $\text{ElementsPerInvocation}$ when possible (remembering it must be at least $2$) and only increasing it if the $\text{MaxWorkgroupSize}$ won't allow you to keep it smaller. This is to avoid going through global memory when possible if reading/writing straight to global memory, or maximize occupancy if we preload at the start.
 
 
 ## Optimization 4: Better occupancy and access latency with spilling preloading
@@ -261,7 +271,7 @@ To compute a per-channel spectrum in the Bloom example, we have a few different 
 One would be to load each channel at a time, compute the FFT for that channel, and store it. This sounds natural, and it's what we do in the Bloom example for intermediate FFTs. 
 But for the first axis FFT, the problem is that each thread is essentially sampling the same spots in a texture once per channel, with a long computation (the FFT of the channel) in the middle , so the parts of the texture accessed are unlikely to be cached between loads (because of other workgroups working on the same SM). The same happens at the end, when doing IFFT along the first axis. This results in three texture writes per pixel, each time writing a different channel (AND having to retrieve the previous write before the next, since you can't just write to a single channel of a texture).
 
-A different strategy would be to load all channels at once, having the values for all channels resident in registers. Although this means we're using more registers per thread, these can be spilled to global memory in the worst case, resulting in only some accesses to global memory.
+A different strategy would be to load all channels at once, having the values for all channels resident in registers. Although this means we're using more registers per thread, these can be spilled to global memory in the worst case, resulting in only some accesses to global memory. The upside is that each SM/CU/EU probably has its own spilling private memory arena so its faster than re-accessing a texture/buffer anyway.
 
 Now that we have preloaded all channels, another important decision must be made: do we compute the FFT channel by channel or all at once? You see, just like you can define `complex_t<float32_t>` or similar, you could use `complex_t<vector<float32_t, 3> >` with operations done on a per-element basis. The number of operations remains the same for either three FFTs with `complex_t<float32_t>` or a single FFT with `complex_t<vector<float32_t, 3> >`, but what doesn't remain the same is the memory and memory barriers required to do so. 
 
@@ -273,11 +283,20 @@ In our bloom example, we choose to overbarrier but keep shared memory usage per 
 
 This will become more clear when we talk about the Accessor pattern later on, but another important part of preloading is that (except for register spilling) we never need to go through global memory when doing an FFT, even if $\text{ElementsPerInvocation}>2$. 
 
-## Optimization 5: Dynamic Kernel rescaling with a Polyphase LUT
+## Optimization 5: Dynamic Kernel rescaling via Spectral Resampling
 
 At the start of the article we talked a bit about the Hadamard product and that to perform such a product you'd need both spectra to be matrices of the same exact dimensions. Let's go over it again.
 
-The result of the FFT of the image is of dimensions `roundUpToPoT(imageDimensions+kernelDimensions)` while the result of the FFT of the kernel has size `roundUpToPoT(kernelDimensions)`. `roundUpToPoT` means to round each dimension up to the next power of two (remember this is needed by Cooley-Tukey) and the `+kernelDimensions` is there to account for padding to avoid wraparound artifacts.
+The result of the FFT of the image is of dimensions 
+```cpp
+roundUpToPoT(imageDimensions+kernelDimensions)
+``` 
+while the result of the FFT of the kernel has size 
+```cpp
+roundUpToPoT(kernelDimensions)
+```
+ 
+`roundUpToPoT` means to round each dimension up to the next power of two (remember this is needed by Cooley-Tukey) and the `+kernelDimensions` is there to account for padding to avoid wraparound artifacts.
 To simplify the discussion a bit we'll also assume `kernelDimensions` is a square with PoT-side length.
 
 So, how do we compute the Hadamard product? One thing you could do is create a `roundUpToPoT(imageDimensions+kernelDimensions)` image which has a copy of the kernel in the center and zero padding all around it, 
@@ -292,24 +311,25 @@ product at pixel $p$, we get $p$'s `uv` coordinates in the image (essentially ju
 
 This allows us to keep a single copy of the spectrum resident in GPU memory, with no padding (so it's as small as it can be) and reuse it for any convolutions we might want to perform.
 
-What we're doing here is essentially a rough type of polyphase filter. Arkadiusz's video does give a bit of insight into this as well. This case in particular, however, is special. Since we assume (and ir our Bloom example, require)
-the kernel to have PoT long sides (and square, but for this discussion it could also be rectangular) it turns out that `roundUpToPoT(imageDimensions+kernelDimensions)` is exactly an integer multiple of `kernelDimensions` 
+What we're doing here is essentially zooming out in the spatial domain by resampling the spectrum. Once again, Arkadiusz's video does give a bit of insight into this as well.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Ol_sHFVXvC0?si=dVlEwrkL2zm7s5Mi&amp;start=572" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Since we assume (and ir our Bloom example, require) the kernel to have PoT long sides (and square, but for this discussion it could also be rectangular) it turns out that `roundUpToPoT(imageDimensions+kernelDimensions)` is exactly an integer multiple of `kernelDimensions` 
 (of course, it might be a different multiple per axis). Let's assume   
 
 $\text{roundUpToPoT}(\text{imageDimensions}+\text{kernelDimensions}) = (N_1, N_2) \cdot \text{kernelDimensions}$. 
 
 $N_1$ and $N_2$ also turn out to be PoT, but that's irrelevant.
 
-What this all means is that the end result is not just a polypahse filter, but rather a pure upsampling process. Our spectral interpolation is exacly equivalent to upsampling with a tent filter: that is, the result 
+What this all means is that the end result is not just any kind of resampling, but rather a pure (integer-factor) upsampling process. Our spectral interpolation is exacly equivalent to upsampling with a tent filter: that is, the result 
 is exactly the same as introducing $N_1 - 1$ zeros between samples along the $x$-axis, $N_2 - 1$ zeros between samples along the $y$-axis, and then convolving the result with a tent filter whose finite support is exactly the length between two pixels in the original spectrum (the linear interpolation 
-performed by HW samplers is exactly the same as a convolution with a tent).
+performed by hardware samplers is exactly the same as a convolution with a tent).
 
-This is very neat! It means we get no spatial aliasing (since it's integral upsampling). In an upsampling process (also called interpolation) the convolution with a filter after the expansion (filling with zeros) is meant 
-to get rid of the spatial repetition of the kernel caused by the expansion. If this were a perfect filter, such as $\text{sinc}$, this would be a spatial product with a box that would exactly enclose the central copy 
-of the kernel and annihilate the rest. 
+[Pure upsampling](https://en.wikipedia.org/wiki/Upsampling) in one domain causes periodic repetition of the signal in the other domain in the expansion step (introducing zeros between samples) before attenuating the repetitions in the interpolation step. Ideally we would like to annihilate the repetitions entirely using a perfect filter $(\text{sinc})$, since convolution with it in the spectral domain becomes a product with a box function in the spatial domain, one which would exactly enclose the central copy of the kernel and annihilate the rest. 
 
-The interpolation with a tent filter, however, is equivalent to a product in the spatial domain with a $\text{sinc}^2$ function. This means that repeated copies of the kernel get annihilated, although not perfectly: copies of the kernel overlapping with secondary lobes of the 
-$\text{sinc}^2$ will get scaled down but not completely annihilated. This causes ringing artifacts. For example, here's the result of our convolution against a kernel of size `256x256` (using mirror padding to get as much luminance as possible):
+The interpolation with a tent filter, however, is equivalent to a product in the spatial domain with a $\text{sinc}^2$ function. This means that repeated copies of the kernel get attenuated, although not perfectly: copies of the kernel overlapping with secondary lobes of the 
+$\text{sinc}^2$ will get scaled down (and by quite a lot) but not completely annihilated. This causes ringing artifacts. For example, here's the result of our convolution against a kernel of size `256x256` (using mirror padding to get as much luminance as possible):
 
 ![Ringing](convolved_256.png "Ringing")
 
@@ -344,6 +364,8 @@ $1$, in case you want to compare it against the one we did with a `256x256` kern
 
 ![512](convolved_512.png "With a 512 kernel")
 
+An alternative would be to upgrade the Tent filter to a better approximation of the $\text{sinc}$ function. You can do this in any manner you want, but if you want the resampling to stay relatively fast by exploiting hardware bilinear sampling you will want to use polynomial fits of $\text{sinc}$. There's a [GPU Gems article](https://developer.nvidia.com/gpugems/gpugems2/part-iii-high-quality-rendering/chapter-20-fast-third-order-texture-filtering) on implementing a bicubic sampler using bilinear sampling, and the technique naturally extends to bi-whatever sampling (with exponential cost, however).
+
 ### Dynamic PSF Sharpening
 
 Given the shape of the PSF we consider in this example, spatially rescaling the kernel is pointless. I have shown you an image of the kernel with a low whitepoint, but its actual distribution is kind of a very sharp 
@@ -370,13 +392,17 @@ $t \in [0,1]$ of course).
 To elaborate on this point, I'm going to give the exact numbers for the Bloom example. The convolution of our `1280x720` image of balls against the `256x256` kernel requires us to get the spectrum of a   
 `2048x1024 = roundUpToPoT(1280x720 + 256x256)` sized image. 
 
-The naive approach, even with our real FFT packing trick along the first axis, would have us run  
-$1024$ FFTs of length $1024$ along the $y$-axis (packing two consecutive columns together) followed by $512$ FFTs of length $2048$ along the $x$-axis (remember that we keep half of each column, so if 
-they're $1024$ long we actually keep $512$ to run the FFT along the next axis), if doing the FFT along the $y$-axis first. 
+Here's a table of total FFTs ran using a naive approach (padding both dimensions up to PoT before running the FFTs):
 
-Doing $x$-axis first, same math yields having to do $512$ FFTs of length $2048$ along the $x$-axis, followed by $1024$ FFTs of length $1024$ along the $y$-axis. So both are about the same. 
+|    | FFTs along first axis | FFTs along second axis |
+|----|---------|---------|
+| $x$ axis first | $512$ of length $2048$      | $1024$ of length $1024$      |
+| $y$ axis first | $1024$ of length $1024$      | $512$ of length $2048$      |
 
-But we can do better. Let's think about the case in which we run an FFT along the $y$-axis first. Out of the $1024$ FFTs we launch, $384$ are redundant. This is because there's   
+
+Unsurprisingly, they're the same amount of FFTs (grouped by length) in total. If you're wondering why along the second axis we perform half as many FFTs as the length of the FFTs along the first axis, remember that we keep half of each FFT along the first axis.
+
+We can however do much better than this. Let's think about the case in which we run an FFT along the $y$-axis first. Out of the $1024$ FFTs we launch, $384$ are redundant. This is because there's   
 $640 = \frac {1280} 2$ actual packed columns in our image.  
 
 $192 = \frac {384} 2$ packed columns to each side are in the padding area. Running an FFT along these columns either yields $0$ (if we use 
@@ -388,12 +414,21 @@ Similarly, in the next step when running an FFT along the $x$-axis, we will need
 $2048$). The padding along the $y$-axis 
 was done automatically by our HW sampler, but this time we must do the padding by hand, either setting zeros or retrieving mirrored values in the padding area. 
 
-So that's  $640$ FFTs of length $1024$ followed by $512$ FFTs of length $2048$ if we run $y$-axis first. The same math yields $360$ FFTs of length $2048$ followed by $1024$ FFTs of length $1024$ if 
-doing $x$-axis first. 
+Here's the table of total FFTs for that case as well as the $x$ axis first case:
 
-Which one is better? Well in this particular case, $y$-axis first takes about $0.57 \; \text{ms}$ to run on my 4060 (measured with Nsight Systems), while $x$-axis first takes about $0.73 \; \text{ms}$. That's a pretty big difference! 
+|    | FFTs along first axis | FFTs along second axis |
+|----|---------|---------|
+| $x$ axis first | $360$ of length $2048$      | $1024$ of length $1024$      |
+| $y$ axis first | $640$ of length $1024$      | $512$ of length $2048$      |
 
-If we change the kernel to a size of `512x512`, then doing $y$-axis first ends up doing $640$ FFTs of length $2048$ followed by $1024$ FFTs of length $2048$. Doing $x$-axis first, on the other hand, does $360$ FFTs of length $2048$ followed by $1024$ FFTs of length $2048$. 
+Which one is better? Well in this particular case, $y$-axis first takes about $0.57 \; \text{ms}$ to run on my 4060 (measured with Nsight Systems), while $x$-axis first takes about $0.73 \; \text{ms}$. That's a significant difference! 
+
+If we change the kernel to a size of `512x512`, we get the following table instead:
+
+|    | FFTs along first axis | FFTs along second axis |
+|----|---------|---------|
+| $x$ axis first | $360$ of length $2048$      | $1024$ of length $2048$      |
+| $y$ axis first | $640$ of length $2048$      | $1024$ of length $2048$      |
 
 Unlike the previous case in which the FFTs to compare are all different-sized, this particular case is easier to analyze: $y$-axis first runs $1664$ FFTs of length $2048$ in total while $x$-axis first runs $1384$ FFTs of the same length, so it's reasonable to expect that $x$-axis first performs better in this case. Indeed, $x$-axis first takes about $1.04 \; \text{ms}$ to run, while $y$-axis first takes about $1.45 \; \text{ms}$.
 
@@ -405,18 +440,29 @@ this lets us write more generic and maintanable code. Before I show you some exa
 ### The Nabla HLSL library
 
 One of the highlights of Nabla is our HLSL library: most of the library is code that's shared between the host and the device, so you can access the same functions and structs from both. We made a lot of HLSL equivalents 
-for many of CPP's `std` headers, such as `<type_traits>`, `<limits>`, `<algorithm>`, `<functional>`, `<tgmath>` and `<complex>`. We also have `<concepts>` in HLSL, which we've been using abundantly. 
+for many of CPP's `std` headers, such as 
+* `<type_traits>`
+* `<limits>`
+* `<algorithm>`
+* `<functional>`
+* `<tgmath>`
+* `<complex>` 
+* `<concepts>`
 
-A lot of this is only made possible by using our own preprocessor (Boost.Wave) which gives us access to stuff like reflection. 
+A lot of this (and especially the implementation of `<concepts>`) is only possible via some hardcore Macro Programming - the only way of writing reflection in C++11 (level at which DXC operates at) - which is made possible by BOOST_PP. 
 
-This adds a lot of functionality of the host to the device, but we also have some device code that can run on the host: for example, we implemented a lot of SPIR-V intrinsics in CPP so you can use them on the host as well. 
+Wave is the only C++20 conformant (implementing __VA_OPT__ and friends) stand alone library (not part of a compiler) preprocessor thats not buggy allowing us to use BOOST_PP.
+
+This adds a lot of functionality of the host to the device, but we also have some device code that can run on the host: for example, we implemented a lot of GLSL and HLSL intrinsics in CPP so you can use them on the host as well. 
 
 Besides the added functionality on both sides, this is really good for testing and debugging: as long as your code can be compiled for both host and device, you can debug the code running on your GPU by running it on the CPU,
 or design unit tests that run on the CPU. 
 
 ### Running an FFT in Nabla
 
-Before that, let's go over how to use the FFT in Nabla on the GPU. This will be a walkthrough of how to set up the code to run an FFT and an explanation of most stuff found in the FFT library (all the structs detailed here are in the workgroup namespace). The first thing to clarify is that since we're using Cooley-Tukey, we ONLY perform FFTs on power-of-two (PoT for short) sized arrays. If your array isn't PoT-sized, make sure to pad the array in whichever way you see fit up to a power of two.
+Before that, let's go over how to use the FFT in Nabla on the GPU. This will be a walkthrough of how to set up the code to run an FFT and an explanation of most stuff found in the FFT library (all the structs detailed here are in the `workgroup` namespace). 
+
+The first thing to clarify is that since we're using Cooley-Tukey, we ONLY perform FFTs on power-of-two (PoT for short) sized arrays. If your array isn't PoT-sized, make sure to pad the array in whichever way you see fit up to a power of two.
 
 To run an FFT, you need to call the FFT struct's static `__call` method. You do this like so: 
 
@@ -424,9 +470,11 @@ To run an FFT, you need to call the FFT struct's static `__call` method. You do 
 FFT<Inverse, ConstevalParameters>::__call<Accessor, SharedMemoryAccessor>(Accessor accessor, SharedMemoryAccessor sharedMemoryAccessor);
 ```
 
-`Inverse` indicates whether you're running a forward or an inverse FFT
+We use functional structs instead of plain functions because HLSL does not support partial specialization of functions, so if you want to achieve the same result you have to wrap your function in a struct which CAN be partially specialized. Furthermore, we use a `__call()` method instead of overloading `operator()` because due to the low (C++11) version DXC is based off of, the latter does not allow for implicit template arguments while the former does (so in the snippet above you could skip writing `<Accessor, SharedMemoryAccessor>` if you wanted to).
 
-`ConstevalParameters` is a struct created from three compile-time constants: `ElementsPerInvocationLog2`, `WorkgroupSizeLog2` and `Scalar`.  
+`Inverse` is a bool value indicating whether you're running a forward or an inverse FFT
+
+`ConstevalParameters<ElementsPerInvocationLog2, WorkgroupSizeLog2, Scalar>` is a struct created from three compile-time constants.  
 
 `Scalar` is just the scalar type for the complex numbers involved.  
 
@@ -444,8 +492,7 @@ template <typename AccessType>
 void get(uint32_t idx, NBL_REF_ARG(AccessType) value);
 ```   
 
-These methods need to be able to be specialized with `AccessType` being `complex_t<Scalar>` for the FFT to work properly. Furthermore, if doing an FFT with $\text{ElementsPerInvocationLog2}>1$, it MUST also provide a   
-`void memoryBarrier()` method. If not accessing any type of memory during the FFT, it can be a method that does nothing. Otherwise, it must do a barrier with `AcquireRelease` semantics, with proper semantics for the type of memory it accesses. 
+These methods need to be able to be instantiated with `AccessType` being `complex_t<Scalar>` for the FFT to work properly.
 
 `SharedMemoryAccessor` is an accessor to a shared memory array of `uint32_t` that MUST be able to fit `WorkgroupSize` many complex elements (one per thread).  
  It MUST provide the methods   
@@ -459,19 +506,33 @@ void get(IndexType idx, NBL_REF_ARG(AccessType) value);
 void workgroupExecutionAndMemoryBarrier();
 ```     
 
-The templates are there in case you want to use the same accessor in other ways, but for usage with FFT those methods MUST be able to be specialized with 
+The templates are there in case you want to use the same accessor in other ways, but for usage with FFT those methods MUST be able to be instantiated with 
 both `IndexType` and `AccessType` being `uint32_t`.   
 `workgroupExecutionAndMemoryBarrier()` can be any method that ensures that whenever threads shuffle via the shared memory, all threads have reached the barrier after writing their values and before reading the values they need to get from it. In our examples it's usually a `glsl::barrier()`.
+
+We will talk a bit more about Accessors later in this section, but we have an upcoming blogpost about them that goes deeper. 
 
 Furthermore, you must define the method `uint32_t3 nbl::hlsl::glsl::gl_WorkGroupSize()` (usually since we know the size we will launch at compile time we make this return values based on some compile-time known constants). This is because of an issue / bug with DXC caused by SPIR-V allowing both compile-time and runtime workgroup sizes. 
 
 With all of that said, here's an example of an FFT being ran:
 
 ```cpp
+
+struct PushConstantData
+{
+	uint64_t deviceBufferAddress;
+};
+
+[[vk::push_constant]] PushConstantData pushConstants;
+
 using namespace nbl::hlsl;
 
-using ConstevalParameters = workgroup::fft::ConstevalParameters<ElementsPerInvocationLog2, WorkgroupSizeLog2, scalar_t>;
+// Given compile-time known constants `ElementsPerInvocationLog2`, `WorkgroupSizeLog2` (defined elsewhere), and `float32_t`, 
+// we give an alias to the `workgroup::fft::ConstevalParameters` struct for clarity. 
+using ConstevalParameters = workgroup::fft::ConstevalParameters<ElementsPerInvocationLog2, WorkgroupSizeLog2, float32_t>;
 
+// The constexpr `ConstevalParameters::SharedMemoryDWORDs` tells us the size (in number of `uint32_t`s) that the shared memory array must have, 
+// so we use that to declare the array
 groupshared uint32_t sharedmem[ ConstevalParameters::SharedMemoryDWORDs];
 
 // Users MUST define this method for FFT to work
@@ -479,13 +540,50 @@ uint32_t3 glsl::gl_WorkGroupSize() { return uint32_t3(uint32_t(ConstevalParamete
 
 struct SharedMemoryAccessor 
 {
-  //...
-};
-struct Accessor
-{
-  // ...
+	template <typename IndexType, typename AccessType>
+	void set(IndexType idx, AccessType value)
+	{
+		sharedmem[idx] = value;
+	}
+
+	template <typename IndexType, typename AccessType>
+	void get(IndexType idx, NBL_REF_ARG(AccessType) value)
+	{
+		value = sharedmem[idx];
+	}
+
+	void workgroupExecutionAndMemoryBarrier()
+	{
+		glsl::barrier();
+	}
+
 };
 
+struct Accessor
+{
+	static Accessor create(const uint64_t address)
+    {
+        Accessor accessor;
+        accessor.address = address;
+        return accessor;
+    }
+
+    template <typename AccessType>
+    void get(const uint32_t index, NBL_REF_ARG(AccessType) value)
+    {
+        value = vk::RawBufferLoad<AccessType>(address + index * sizeof(AccessType));
+    }
+
+    template <typename AccessType>
+    void set(const uint32_t index, const AccessType value)
+    {
+        vk::RawBufferStore<AccessType>(address + index * sizeof(AccessType), value);
+    }
+
+    uint64_t address;
+};
+
+// launch `ConstevalParameters::WorkgroupSize` many threads in a workgroup, instantiate the accessors and then run FFTs
 [numthreads(ConstevalParameters::WorkgroupSize,1,1)]
 void main(uint32_t3 ID : SV_DispatchThreadID)
 {
@@ -502,16 +600,8 @@ void main(uint32_t3 ID : SV_DispatchThreadID)
 }
 ```
 
-Given compile-time known constants `ElementsPerInvocationLog2`, `WorkgroupSizeLog2`, and `scalar_t` (defined elsewhere) we give an alias to the `workgroup::fft::ConstevalParameters` struct for clarity. 
-The constexpr `ConstevalParameters::SharedMemoryDWORDs` tells us the size (in number of `uint32_t`s) that the shared memory array must have, so we use that to declare the array. Then, we define the 
-`uint32_t3 glsl::gl_WorkGroupSize()` method. 
-
-We skip the definitions for the methods in the accessors, just assume the `SharedMemoryAccessor` writes and reads from 
-the shared memory array and the `Accessor` reads and writes from an array we have already filled with the data we want to perform an FFT on. 
-
-Then, we launch `ConstevalParameters::WorkgroupSize` many threads in a 
-workgroup, instantiate the accessors and then run FFTs like shown above. The first is a Forward FFT and the second is an Inverse FFT. In the code above I'm running one after the other to showcase something important:
-if you're going to use the shared memory after an FFT (in this case it's going to be used to run another FFT), you MUST do an execution and memory barrier like above. This is because we don't immediately block execution after the first FFT is done, so that if your threads need to do some work after the first FFT they can do so unbothered, but access to shared memory should be barriered if needed after the FFT.
+In the snippet above, the first FFT is a Forward FFT and the second is an Inverse FFT. I'm running one after the other to showcase something important:
+if you're going to use the shared memory after an FFT (in this case it's going to be used to run another FFT), you MUST do an execution and memory barrier like above. We explain why in the next section.
 
 The result of either FFT is actually exactly the same, save for normalization. The Inverse FFT divides the resulting array by $\text{FFTLength}$ at the end.
 
@@ -535,11 +625,11 @@ We limit the rest of this discussion to the `Accessor` in our FFT, to exemplify 
 
 In the FFT, the Accessor has different behaviour according to $\text{ElementsPerInvocation}$. If $\text{ElementsPerInvocation}=2$ then the Accessor is only used to read data in at the start and write it out at the end. This allows for the FFT to be done out-of-place: you don't necessarily have to make the accessor read and write to the same place. 
 
-If $\text{ElementsPerInvocation}>2$, however, then the Accessor is also used as a way to "trade" elements between threads when doing "bigger-than-Workgroup-sized" FFTs so the FFT MUST be done in-place. This is also why in this case it has to provide a nontrivial `memoryBarrier()`. 
+If $\text{ElementsPerInvocation}>2$, however, then the Accessor is also used as a way to "trade" elements between threads when doing "bigger-than-Workgroup-sized" FFTs so the FFT MUST be done in-place.
 
 Now let's go over the code in [the Bloom example](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/tree/master/28_FFTBloom) to show examples of other types of flexibility this pattern has.
 
-The code in the Bloom example uses [preloaded accessors](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/fft_common.hlsl#L42), meaning that they read in all their elements into registers before running the FFT and write them out themselves after the FFT. This obviously decreases occupancy if preloading multiple channels or if $\text{ElementsPerInvocation}>2$ when loading a single channel. But we get different benefits. One of them is that there's no `memoryBarrier()` calls that matter (which is why in this case we specify it can be a method that does nothing).
+The code in the Bloom example uses [preloaded accessors](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/fft_common.hlsl#L42), meaning that they read in all their elements into private memory (likely increasing register usage) before running the FFT and write them out themselves after the FFT. This obviously decreases occupancy if preloading multiple channels or if $\text{ElementsPerInvocation}>2$ when loading a single channel. But we get different benefits. One of them is that there's no `memoryBarrier()` calls that matter (which is why in this case we specify it can be a method that does nothing).
 
 In all cases, the same flexibility as before stays: either when preloading before the FFT or unloading afterwards, you get to choose where they read from and where they write to. For example, the [first axis FFT](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/image_fft_first_axis.hlsl#L31) reads from an image and writes to a buffer, the [second axis FFT](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/fft_convolve_ifft.hlsl#L59) (which also performs product and IFFT in the same shader) does buffer->buffer, and the [last IFFT](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/87de8388a9082b4e3fa5566cceeebd0d8a5a3a1b/28_FFTBloom/app_resources/image_ifft_first_axis.hlsl#L37) does buffer->image.
 
