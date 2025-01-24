@@ -5,6 +5,7 @@ description: 'Understanding and using the Nabla FFT'
 date: '2025-01-24'
 authors: ['fletterio']
 tags: ['nabla', 'vulkan', 'article', 'tutorial', 'showcase']
+image: 'https://raw.githubusercontent.com/graphicsprogramming/blog/main/blog/2025/2025-01-24-fft-bloom-optimized-to-the-bone-in-nabla/convolved.png'
 last_update:
     date: '2025-01-24'
     author: Fletterio
@@ -199,7 +200,7 @@ Since we have the diagram at hand, let's also introduce the "stride". Each stage
 
 In the diagram above, to compute the FFT of a sequence of length $8$ first we perform some butterflies to prepare the input for the next stage, and then the next stage runs two FFTs on sequences of length $4$ independently. Each of these FFTs, in turn, does the same: perform some butterflies as input for stage $3$, then run two FFTs on sequences of length $2$ independently.
 
-How do we map this to hardware? Well, we notice that the number of butterflies per stage is constantly $\frac N 2$. In our implementation, we make threads compute a single butterfly each at each stage. That means that we launch $\frac N 2$ threads, with thread of thread ID $n$ in charge of computing the $n$th butterfly, when counting butterflies from the top. So at stage $1$, for example, thread $0$ is in charge of computing the butterfly between its inputs $x[0]$ and $x[4]$, and thread $2$ would be in charge of computing the butterfly between inputs $x[2]$ and $x[4]$. 
+How do we map this to hardware? Well, we notice that the number of butterflies per stage is constantly $\frac N 2$. In our implementation, we make threads compute a single butterfly each at each stage. That means that we launch $\frac N 2$ threads, with thread of thread ID $n$ in charge of computing the $n$th butterfly, when counting butterflies from the top. So at stage $1$, for example, thread $0$ is in charge of computing the butterfly between its inputs $x[0]$ and $x[4]$, and thread $2$ would be in charge of computing the butterfly between inputs $x[2]$ and $x[6]$. 
 
 Now let's look at stage $2$. The first butterfly of stage $2$, with index $0$ counting from the top, has to be performed by thread $0$. But to do this we require the first of thread $0$'s output of the previous stage, and the first of thread $2$'s output. Similarly the third butterfly, with index $2$, has to be performed by thread $2$ with the second outputs of the same butterflies. 
 
@@ -761,7 +762,7 @@ In case this is hard to follow, you can copy the template function we use to tra
 We mentioned these already in the Optimization 7 section, but our FFT Bloom runs on an RTX 4060 in $0.57 \; \text{ms}$ (for a `1280x720` image with a `256x256` kernel) and in $1.04 \; \text{ms}$ for the same image 
 with a `512x512` kernel, taking the best-running case for each kernel as discussed in that section.
 
-For reference, Froyok's implementation of CoD Bloom takes $0.16 \; \text{ms}$ to run on an image of the same size, while our Prefix Sum based Blur takes $1.27 \; \text{ms}$ (blog post on that in the works).
+For reference, [Froyok's implementation of CoD Bloom](https://github.com/Froyok/Bloom) takes $0.16 \; \text{ms}$ to run on an image of the same size, while our [Prefix Sum based Blur](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/tree/master/26_Blur) takes $1.27 \; \text{ms}$ (blog post on that in the works).
 
 When moving up to a `1920x1080` image, time taken skyrockets to $4.4 \; \text{ms}$ regardless of kernel size or which axis the FFT is ran along first. Froyok's Bloom takes takes $0.2 \; \text{ms}$ for that size, 
 while our Prefix Sum based Blur takes $2.59 \; \text{ms}$.
