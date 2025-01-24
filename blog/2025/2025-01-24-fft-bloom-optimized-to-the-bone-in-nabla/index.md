@@ -762,7 +762,7 @@ In case this is hard to follow, you can copy the template function we use to tra
 We mentioned these already in the Optimization 7 section, but our FFT Bloom runs on an RTX 4060 in $0.57 \; \text{ms}$ (for a `1280x720` image with a `256x256` kernel) and in $1.04 \; \text{ms}$ for the same image 
 with a `512x512` kernel, taking the best-running case for each kernel as discussed in that section.
 
-For reference, Froyok's implementation of CoD Bloom takes $0.16 \; \text{ms}$ to run on an image of the same size, while our Prefix Sum based Blur takes $1.27 \; \text{ms}$ (blog post on that in the works).
+For reference, [Froyok's implementation of CoD Bloom](https://github.com/Froyok/Bloom) takes $0.16 \; \text{ms}$ to run on an image of the same size, while our [Prefix Sum based Blur](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/tree/master/26_Blur) takes $1.27 \; \text{ms}$ (blog post on that in the works).
 
 When moving up to a `1920x1080` image, time taken skyrockets to $4.4 \; \text{ms}$ regardless of kernel size or which axis the FFT is ran along first. Froyok's Bloom takes takes $0.2 \; \text{ms}$ for that size, 
 while our Prefix Sum based Blur takes $2.59 \; \text{ms}$.
