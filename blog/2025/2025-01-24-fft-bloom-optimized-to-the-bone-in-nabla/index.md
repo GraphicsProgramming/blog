@@ -2,11 +2,11 @@
 title: 'FFT Bloom Optimized to the Bone in Nabla'
 slug: 'fft-bloom-optimized-to-the-bone-in-nabla'
 description: 'Understanding and using the Nabla FFT'
-date: '2025-01-10'
+date: '2025-01-24'
 authors: ['fletterio']
 tags: ['nabla', 'vulkan', 'article', 'tutorial', 'showcase']
 last_update:
-    date: '2025-01-10'
+    date: '2025-01-24'
     author: Fletterio
 ---
 
@@ -353,6 +353,8 @@ at first (before the product with a $\text{sinc}^2$) repeated all over the image
 
 you can imagine that the big central lobe gets multiplied against the central copy, preserving it (especially towards the center, killing it off towards the edges). But the next copy gets multiplied against the secondary lobe (the one circled in red) and doesn't get completely annihilated (again, especially important towards the centre of the copy, where the kernel concentrates most luminance),
 causing ringing artifacts. 
+
+Arkadiusz's video on the timestamp above also showcases the spatial ringing of the kernel when doing this (albeit very exaggerated so you can see some of it).
 
 To avoid this ringing, you can use a bigger kernel, since that makes $(N_1, N_2)$ smaller, meaning less zeros in the upsampling process, leading to less spatial repetition, leading to a more "compact" $\text{sinc}^2$,
 which has smaller secondary lobes. Here's for example the result of doing our convolution against a kernel of size `512x512`, same whitepoint:
@@ -753,3 +755,78 @@ NablaMirrorGlobalInfo FFTMirrorTradeUtils::getNablaMirrorGlobalInfo(uint32_t glo
 `getNablaMirrorGlobalInfo` returns the same info but with a `mirrorGlobalIndex` instead, so instead of returning the $\text{localElementIndex}$ of the element we have to send, it returns its $\text{globalElementIndex}$. 
 
 In case this is hard to follow, you can copy the template function we use to trade mirrors around in `fft_mirror_common.hlsl` in the Bloom example. 
+
+## Results
+
+We mentioned these already in the Optimization 7 section, but our FFT Bloom runs on an RTX 4060 in $0.57 \; \text{ms}$ (for a `1280x720` image with a `256x256` kernel) and in $1.04 \; \text{ms}$ for the same image 
+with a `512x512` kernel, taking the best-running case for each kernel as discussed in that section.
+
+For reference, Froyok's implementation of CoD Bloom takes $0.16 \; \text{ms}$ to run on an image of the same size, while our Prefix Sum based Blur takes $1.27 \; \text{ms}$ (blog post on that in the works).
+
+When moving up to a `1920x1080` image, time taken skyrockets to $4.4 \; \text{ms}$ regardless of kernel size or which axis the FFT is ran along first. Froyok's Bloom takes takes $0.2 \; \text{ms}$ for that size, 
+while our Prefix Sum based Blur takes $2.59 \; \text{ms}$.
+
+The FFT Convolution does have some advantages over the Prefix Sum Blur: the former requires constant workgroup accessible memory, regardless of input size, while the latter requires an amount that's proportional to the length 
+of scanlines in the image. Also, the latter can only do radially symmetric kernels, while the FFT allows for arbitrarily shaped kernels. For example, you could convolve an image with a heart-shaped kernel:
+
+![Heart](heart.png "Convolution with a heart-shaped kernel")
+
+Analyzing the shaders in NSight, we see that we get perfect occupancy for the first FFT pass (first shader), using $40$ registers for a theoretical max warp occupancy of $48$. I was also getting perfect occupancy on the last IFFT pass (third shader) until two days ago, without changing any 
+code I'm now getting $42$ registers usage which is just $1$ over the perfect occupancy limit, which is a bummer. With a little more optimization it might be possible to bring it back down to $40$ and achieve perfect occupancy again.
+The second shader, which doess FFT + Hadamard + IFFT, uses $59$ registers, yielding the same theoretical max warp occupancy of $32$ for both last shaders.
+
+Out of a full pass, the first shader only takes $16\%$ of the time, the last shader takes $36\%$ and the remaining time is taken by the second shader. 
+
+Looking for bottlenecks we find that $22\%$ of stalls in the second shader are LGSB (`long_scoreboard_not_issued`), likely due to reads thrashing the cache: threads in the same workgroup don't sample the kernel spectrum in a locally-coherent 
+manner but they rather sample it all over the place because the image spectrum is in a weird mix of Nabla order along one axis and bitreversed along the other, while the kernel is in natural DFT order. 
+
+This suggests 
+that it might be worth it to reorder the spectrum of the image (reordering after FFT along each axis) so that we get the spectrum in natural order, sample the kernel spectrum coherently, and then reorder it again 
+before the IFFTs. Of course, this would likely increase THDBAR stalls (waiting on barriers), which are already quite high.
+
+Speaking of such barriers, for each shader in order these represent $16\%, 18\%$ and $16\%$ of stalls. A LOT of these barriers happen when shuffling elements around in unpacking operations. They are necessary to prevent 
+data races, but frankly speaking time taken between each barrier was usually enough (on my GPU, at least) for all threads in the workgroup to catch up, so the image was always correct. So, at least on my GPU, you can 
+cut down the time taken by Bloom by reducing a bunch of these barriers. 
+
+## Future Work
+
+Inbetween shaders, we optimized for coalesced writes. That is, along the first axis we do a coalesced write after an FFT or IFFT, which makes the next shader have to read non-coalesced. 
+We did not try using images in optimal tiling for this intermediate storage: these are usually stored as Z-order buffers so they *might* be better since you avoid thrashing the cache on both reads and writes, at the cost 
+of none of them being coalesced.
+
+There was an idea of skipping the zero-padding and getting rid of the need for scratch memory by doing the FFT entirely in-place by abusing spectral upsampling to provide the border, but: 
+
+* We would need to perform arbitrarily-sized FFTs, not just PoT. Hard to code, especially if the size can be specified dynamically.
+* Ringing would worsen
+* We would waste shared memory and introduce an $O(\text{upscaleFactor}^2)$ cost for each invocation doing the Hadamard product
+
+Matt had also experimented decomposing the bloom into a low-resolution FFT + high resolution naive convolution filter, but it didn't work for arbitrary kernels. It starts by doing 
+
+$\text{Kernel} * \text{Image} \approx \text{Image} * \text{SmallKernel} + \text{Downsample}(\text{Image)} * \text{ModifiedSmallKernel}$
+
+Downsampling happens as a convolution with a $\text{sinc}$-like function, so 
+
+$\text{Downsample}(\text{Image}) = \text{Image} * \text{Sinc-like}$
+
+which means the convolution between image and kernel then becomes 
+
+$F(\text{Image}) \cdot F(\text{SmallKernel}) + F(\text{Image}) \cdot \text{Box-like} \cdot F(\text{ModifiedSmallKernel})$
+
+in the spectral domain. Equating this to $F(\text{Kernel}) \cdot F(\text{Image})$ yields that 
+
+$F(\text{Kernel}) = F(\text{SmallKernel}) + \text{Box-like} \cdot F(\text{ModifiedSmallKernel})$
+
+ans since the box-like function cuts off higher frequencies, you'd ideally have 
+
+$F(\text{SmallKernel}) = F(\text{Kernel}) \text{ if } k > \text{Downsampled size}$
+
+However, downsampling introduces alaising, and the upsampling of the result does as well (since it's not done with $\text{sinc}$), so in practice it gets tricky to find who 
+the $\text{SmallKernel}$ and $\text{ModifiedSmallKernel}$ should be. 
+
+Last but not least, the most promising optimization: mixed-radix FFTs. Right now, since we only implement Radix-2 Cooley-Tukey, you need to pad up to the next power of two to run it, which in the worst case is almost 
+2x the size of your original array, and in 2D this scales to almost 4x. For example, to run an FFT on a $2049$-long array it will be padded to $4096$. With a workgroup size of $512$ this would have you run 
+$8$ Workgroup-sized FFTs + $3$ "bigger-than-Workgroup" stages. 
+
+If we had arbitrarily-sized Radices (or at least for some small primes, like $3,5,7$) we could for example only pad up to $2560 = 512 * 5$, run a single Radix-5 "bigger than Workgroup"-sized stage, and then run $5$
+Radix-2 Workgroup-sized FFTs.  
+
