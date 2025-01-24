@@ -5,6 +5,7 @@ description: 'Understanding and using the Nabla FFT'
 date: '2025-01-24'
 authors: ['fletterio']
 tags: ['nabla', 'vulkan', 'article', 'tutorial', 'showcase']
+image: 'https://raw.githubusercontent.com/graphicsprogramming/blog/main/blog/2025/2025-01-24-fft-bloom-optimized-to-the-bone-in-nabla/convolved.png'
 last_update:
     date: '2025-01-24'
     author: Fletterio
@@ -199,7 +200,7 @@ Since we have the diagram at hand, let's also introduce the "stride". Each stage
 
 In the diagram above, to compute the FFT of a sequence of length $8$ first we perform some butterflies to prepare the input for the next stage, and then the next stage runs two FFTs on sequences of length $4$ independently. Each of these FFTs, in turn, does the same: perform some butterflies as input for stage $3$, then run two FFTs on sequences of length $2$ independently.
 
-How do we map this to hardware? Well, we notice that the number of butterflies per stage is constantly $\frac N 2$. In our implementation, we make threads compute a single butterfly each at each stage. That means that we launch $\frac N 2$ threads, with thread of thread ID $n$ in charge of computing the $n$th butterfly, when counting butterflies from the top. So at stage $1$, for example, thread $0$ is in charge of computing the butterfly between its inputs $x[0]$ and $x[4]$, and thread $2$ would be in charge of computing the butterfly between inputs $x[2]$ and $x[4]$. 
+How do we map this to hardware? Well, we notice that the number of butterflies per stage is constantly $\frac N 2$. In our implementation, we make threads compute a single butterfly each at each stage. That means that we launch $\frac N 2$ threads, with thread of thread ID $n$ in charge of computing the $n$th butterfly, when counting butterflies from the top. So at stage $1$, for example, thread $0$ is in charge of computing the butterfly between its inputs $x[0]$ and $x[4]$, and thread $2$ would be in charge of computing the butterfly between inputs $x[2]$ and $x[6]$. 
 
 Now let's look at stage $2$. The first butterfly of stage $2$, with index $0$ counting from the top, has to be performed by thread $0$. But to do this we require the first of thread $0$'s output of the previous stage, and the first of thread $2$'s output. Similarly the third butterfly, with index $2$, has to be performed by thread $2$ with the second outputs of the same butterflies. 
 
