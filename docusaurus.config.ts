@@ -148,7 +148,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Graphics Programming Discord. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Graphics Programming Discord. Built with Docusaurus. ${getCoolClubWebRingEmbed()}`,
     },
     prism: {
       theme: prismThemes.duotoneLight,
@@ -159,5 +159,13 @@ const config: Config = {
     },
   } satisfies Preset.ThemeConfig,
 };
+
+function getCoolClubWebRingEmbed() {
+    return `<p>
+    <a href="https://join-the-cool.club/members/graphics-programming-blog?prev" style="text-decoration: none">⬅️</a>
+    <a href="https://join-the-cool.club/members/graphics-programming-blog" style="text-decoration: none">🧊</a>
+    <a href="https://join-the-cool.club/members/graphics-programming-blog?next" style="text-decoration: none">➡️</a>
+  </p>`;
+}
 
 export default config;
