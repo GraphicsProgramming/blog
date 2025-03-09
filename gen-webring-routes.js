@@ -1,7 +1,7 @@
 const fs = require("fs");
 
 // Import ze froges
-const frogs = require("static/webring/froglist.json");
+const frogs = require("./static/webring/froglist.json");
 
 function makeRoutes(frog, nextFrog, prevFrog) {
     fs.appendFileSync(`./static/webring/frogs/${frog.name}.html`, frog.url);
