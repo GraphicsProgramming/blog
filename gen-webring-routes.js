@@ -4,7 +4,7 @@ const fs = require("fs");
 const frogs = require("./static/webring/froglist.json");
 
 function makeRoutes(frog, nextFrog, prevFrog) {
-    fs.mkdir(`./static/webring/frogs/${frog.name}`, { recursive: true });
+    fs.mkdirSync(`./static/webring/frogs/${frog.name}`, { recursive: true });
     fs.appendFileSync(`./static/webring/frogs/${frog.name}.html`, frog.url);
     fs.appendFileSync(`./static/webring/frogs/${frog.name}/next.html`, nextFrog.url);
     fs.appendFileSync(`./static/webring/frogs/${frog.name}/prev.html`, prevFrog.url);
