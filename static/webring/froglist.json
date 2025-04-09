@@ -1,10 +1,15 @@
 [
   {
     "name": "gp-blog",
-    "url": "https://graphics-programming.org/"
+    "url": "https://graphics-programming.org/",
+    "displayName": "Graphics Programming Blog",
+    "description": "The official site for the Graphics Programming discord"
   },
   {
     "name": "bluescreen",
-    "url": "https://fumagalli.ar/"
+    "url": "https://fumagalli.ar/",
+    "displayName": "Teo Fumagalli (bluescreen)",
+    "description": "Hi! I made a website with stuff in it"
   }
 ]
+
