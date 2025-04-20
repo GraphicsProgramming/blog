@@ -35,6 +35,34 @@ export default function Hello() {
             </li>
           ))}
         </ul>
+
+        <hr />
+
+        <div
+          style={{
+            display: "flex",
+            gap: "0.25rem",
+            justifyContent: "center",
+          }}
+        >
+          <a href="/webring/frogs/gp-blog/prev">⬅️</a>
+          <a href="/webring/">
+            <img
+              src="/img/froge.webp"
+              alt="a friendly froge"
+              style={{
+                objectFit: "contain",
+                width: "1.5em",
+                height: "1.5em",
+              }}
+            />
+          </a>
+          <a href="/webring/frogs/gp-blog/next">➡️</a>
+        </div>
+
+        <a style={{ textAlign: "center" }} href="join">
+          Join the GP webring
+        </a>
       </div>
     </Layout>
   );
