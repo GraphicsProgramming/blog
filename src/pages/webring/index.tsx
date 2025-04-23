@@ -60,7 +60,7 @@ export default function Hello() {
           <a href="/webring/frogs/gp-blog/next">➡️</a>
         </div>
 
-        <a style={{ textAlign: "center" }} href="join">
+        <a style={{ textAlign: "center" }} href="/webring/join">
           Join the GP webring
         </a>
       </div>
