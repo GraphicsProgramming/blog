@@ -18,9 +18,15 @@
     "description": "Personal site and blog for Nick Clark"
   },
   {
+    "name": "technicjelle",
+    "url": "https://technicjelle.com/",
+    "displayName": "TechnicJelle",
+    "description": "On this website you'll find info about me and my projects"
+  },
+  {
     "name": "eduameli",
     "url": "https://eduameli.gitlab.io",
     "displayName": "eduameli",
     "description": "personal site to share my very cool projects"
-  },
+  }
 ]
