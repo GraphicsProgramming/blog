@@ -16,5 +16,11 @@
     "url": "https://nickclark.tech/",
     "displayName": "Nick Clark",
     "description": "Personal site and blog for Nick Clark"
-  }
+  },
+  {
+    "name": "eduameli",
+    "url": "https://eduameli.gitlab.io",
+    "displayName": "eduameli",
+    "description": "personal site to share my very cool projects"
+  },
 ]
