@@ -35,13 +35,13 @@ so people know you're part of the webring.
 <Tabs>
     <TabItem value="html" label="HTML" default>
         ```html
-        <div style="display: flex, gap: 0.25rem, justify-content: center">
+        <div style="display: flex; gap: 0.25rem; justify-content: center">
           <a href="https://graphics-programming.org/webring/frogs/[YOUR_WEBRING_NAME]/prev">⬅️</a>
           <a href="https://graphics-programming.org/webring/">
             <img
               src="https://graphics-programming.org/img/froge.webp"
               alt="a friendly froge"
-              style="object-fit: contain, width: 1.5em, height: 1.5em"
+              style="object-fit: contain; width: 1.5em; height: 1.5em"
             />
           </a>
           <a href="https://graphics-programming.org/webring/frogs/[YOUR_WEBRING_NAME]/next">➡️</a>
