@@ -28,5 +28,11 @@
     "url": "https://eduameli.gitlab.io",
     "displayName": "eduameli",
     "description": "personal site to share my very cool projects"
+  },
+  {
+    "name": "jaked",
+    "url": "https://jakedelmastro.com",
+    "displayName": "Jake S. Del Mastro",
+    "description": "My website where I share some of my graphics projects"
   }
 ]
