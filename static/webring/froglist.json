@@ -40,5 +40,11 @@
     "url": "https://patrick-is.cool",
     "displayName": "Patrick Monaghan",
     "description": "Personal website and attempted blog"
+  },
+  {
+    "name": "jaker",
+    "url": "https://juandiegomontoya.github.io/",
+    "displayName": "Jake Ryan",
+    "description": "A blog about graphics frogramming"
   }
 ]
