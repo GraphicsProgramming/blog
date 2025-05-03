@@ -46,5 +46,11 @@
     "url": "https://juandiegomontoya.github.io/",
     "displayName": "Jake Ryan",
     "description": "A blog about graphics frogramming"
+  },
+  {
+    "name": "neonmoe",
+    "url": "https://blog.neon.moe/",
+    "displayName": "Jens Pitkänen",
+    "description": "A blog about programming, the small web, and arcane personal computing"
   }
 ]
