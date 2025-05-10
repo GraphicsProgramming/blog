@@ -209,6 +209,12 @@ Lets use this hatchet as an example. You need to take the metallic parameter for
 
 Because ASO packs roughness and metal together I'm gonna send both through the Emission color using a "Combine Color" node (Note ASO uses R = Roughness, G = Metal, this is different from glTF). All you do now is locate the correct texture in your Bake Target and instead of baking Metal and Roughness you bake using "Emission" as the bake type instead.
 
+# Considerations for Mirrored Objects
+
+![Mirror Modifier](mirror-modifier.png)
+
+If your low poly object has a mirror modifier like the hatchet from the metal section, there is one more thing to be aware of. You should set the UV coordinate offset to 1.0 for either U or V. This will ensure the mirrored geometry generates UV coordinates that do not overlap with the ones we already have, which would have caused problems during the bake.
+
 # The End
 
 Hope you enjoyed this tutorial! Maybe they will let me plug ASO at the end. Please wishlist it on Steam: https://store.steampowered.com/app/2818690/A_Short_Odyssey
