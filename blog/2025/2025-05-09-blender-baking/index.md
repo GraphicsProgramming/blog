@@ -4,10 +4,10 @@ slug: 'blender-baking'
 description: 'How to get nice materials on low poly objects'
 date: '2025-05-09'
 authors: ['jaked']
-tags: ['blender', 'baking', 'normal-maps', 'article', 'tutorial', 'showcase']
+tags: ['blender', 'baking', 'normal-maps', 'article', 'tutorial']
 ---  
   
-Real time rendering performance is often limited by 3D assets as much as it's limited by code. Good low poly assets inevitably rely on baking, the process of transferring details from a high poly mesh with a complex material to a low poly one with a much simpler material. Unfortunately however, there seems to be a lack of info regarding baking around, especially in Blender things can sometimes be a bit unintuitive regarding baking. In the process of working on my game, A Short Odyssey (ASO), I came up with a workflow that works quite well for me, so I will share it with you today.
+Real time rendering performance is often limited by 3D assets as much as it's limited by code. Good low poly assets inevitably rely on baking, the process of transferring details from a high poly mesh with a complex material to a low poly one with a much simpler material. Unfortunately, however, there seems to be a lack of info regarding baking around. Especially in Blender, things can sometimes be a bit unintuitive regarding baking. In the process of working on my game, A Short Odyssey (ASO), I came up with a workflow that works quite well for me, so I will share it with you today.
 
 For this tutorial we are going to use this wooden bowl model from the fantastic website [Polyhaven](https://polyhaven.com/a/wooden_bowl_02).
 
@@ -15,15 +15,15 @@ For this tutorial we are going to use this wooden bowl model from the fantastic 
 
 <!-- truncate -->
 
-As with all of the free CC0 models on Polyhaven, this mesh has a fairly high number of small triangles. 4,666 to be exact, while that may not seem like a lot think about how big it is likely to be in a realtime scene. Most of the time the entire bowl might only be a few pixels tall! Especially given that small triangles are much more expensive than large triangles (due to quad occupancy). this is probably something we should deal with.
+As with all of the free CC0 models on Polyhaven, this mesh has a fairly high number of small triangles. 4,666 to be exact. While that may not seem like a lot think about how big it is likely to be in a real time scene. Most of the time the entire bowl might only be a few pixels tall! Especially given that small triangles are much more expensive than large triangles (due to [quad occupancy](https://blog.selfshadow.com/2012/11/12/counting-quads/)). This is probably something we should deal with.
 
 ![Small Bowl](small-bowl.webp)
 
-Now that we understand why we must bake, lets go ahead and do it.
+Now that we understand why we must bake, let's go ahead and do it.
 
 # Preparing for the Bake
 
-Open up your high poly model in Blender, I am using Blender 4.4, other versions should work but your UI might not match up exactly with this tutorial.
+Open up your high poly model in Blender. I am using Blender 4.4. Other versions should work but your UI might not match up exactly with this tutorial.
 
 ![High Poly Blender](high-poly-blender.webp)
 
@@ -43,7 +43,7 @@ If it is not, you can apply the scale with <kbd>Ctrl+A</kbd> -> Apply -> Scale, 
 
 ![triangulate](triangulate.webp)
 
-Next you need to add a triangulate modifier to the low poly object, the exact options you pick here don't really matter but if you change them after the bake you must re-bake all maps.
+Next, you need to add a triangulate modifier to the low poly object. The exact options you pick here don't really matter, but if you change them after the bake you must re-bake all maps.
 
 # Creating a Bake Target Proxy
 
