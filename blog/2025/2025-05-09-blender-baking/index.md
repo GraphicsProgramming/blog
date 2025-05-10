@@ -51,7 +51,7 @@ The main way my workflow differs from what I've seen elsewhere is the use of a B
 
 ![Linked Duplicate](linked-duplicate.webp)
 
-To create a linked duplicate, simply select your low-poly object and hit Alt+D, you can then move your linked duplicate off to the side somewhere.
+To create a linked duplicate, simply select your low-poly object and hit <kbd>Alt+D</kbd>, you can then move your linked duplicate off to the side somewhere.
 
 ![Outliner Names](outliner-names.webp)
 
@@ -109,7 +109,7 @@ We will start by baking the normal map. To do so we must first select "Normal" f
 
 ![Selected To Active](selected-to-active.webp)
 
-Ok its finally bake time, select your High Poly asset then press Ctrl and select your `Bake Target` this sets the High poly as selected and your `Bake Target` as Active. If everything is selected correctly your outliner should look like the image above. With a dark orange highlight on the high poly object and bright orange for the `Bake Target`.
+Ok its finally bake time, select your High Poly asset then press <kbd>Ctrl</kbd> and select your `Bake Target` this sets the High poly as selected and your `Bake Target` as Active. If everything is selected correctly your outliner should look like the image above. With a dark orange highlight on the high poly object and bright orange for the `Bake Target`.
 
 ![Select Normal Node](select-normal-node.webp)
 
