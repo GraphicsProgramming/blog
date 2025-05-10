@@ -7,15 +7,15 @@ authors: ['jaked']
 tags: ['blender', 'baking', 'normal-maps', 'article', 'tutorial', 'showcase']
 ---  
   
-Real time rendering performance is often limited by 3D assets as much as it's limited by code. Good low poly assets inevitably rely on baking, the process of transferring details from a high poly mesh with a complex material to a low poly one with a much simpler material. Unfortunately however there seems to be a lack of info regarding baking around, especially in Blender things can sometimes be a bit intuitive regarding baking. In the process of working on my game, A Short Odyssey, I came up with a workflow that works quite well for me, so I will share it with you today.
+Real time rendering performance is often limited by 3D assets as much as it's limited by code. Good low poly assets inevitably rely on baking, the process of transferring details from a high poly mesh with a complex material to a low poly one with a much simpler material. Unfortunately however, there seems to be a lack of info regarding baking around, especially in Blender things can sometimes be a bit unintuitive regarding baking. In the process of working on my game, A Short Odyssey (ASO), I came up with a workflow that works quite well for me, so I will share it with you today.
 
-For this tutorial we are going to use this wooden bowl model from the fantastic website [Polyhaven](https://polyhaven.com/a/wooden_bowl_02)
+For this tutorial we are going to use this wooden bowl model from the fantastic website [Polyhaven](https://polyhaven.com/a/wooden_bowl_02).
 
 ![Bowl Rendered](bowl-rendered.webp)
 
 <!-- truncate -->
 
-As with all of the free CC0 models on Polyhaven this mesh has a fairly high number of small triangles, 4,666 to be exact, while that may not seem like a lot think about how big it is likely to be in a realtime scene. Most of the time the entire bowl might only be a few pixels tall! Especially given that small triangles are much more expensive than large triangles (due to quad occupancy) this is probably something we should deal with.
+As with all of the free CC0 models on Polyhaven, this mesh has a fairly high number of small triangles. 4,666 to be exact, while that may not seem like a lot think about how big it is likely to be in a realtime scene. Most of the time the entire bowl might only be a few pixels tall! Especially given that small triangles are much more expensive than large triangles (due to quad occupancy). this is probably something we should deal with.
 
 ![Small Bowl](small-bowl.webp)
 
@@ -27,7 +27,7 @@ Open up your high poly model in Blender, I am using Blender 4.4, other versions 
 
 ![High Poly Blender](high-poly-blender.webp)
 
-You then will need a low poly version of the model. How create a low poly model is outside the scope of this tutorial, but it *must* be UV-unwrapped before proceeding and none of the polygons should be overlapping on the UV map.
+You then will need a low poly version of the model. How to create a low poly model is outside the scope of this tutorial, but it *must* be UV-unwrapped before proceeding and none of the polygons should be overlapping on the UV map.
 
 ![Low Poly Blender](low-poly-blender.webp)
 
@@ -39,7 +39,7 @@ The first thing you need to do is make sure the high and low-poly models are dir
 
 ![Unit Scale](unit-scale.webp)
 
-If it is not you can apply the scale with Ctrl+A -> Apply -> Scale, while the low poly object is selected in object mode. 
+If it is not, you can apply the scale with <kbd>Ctrl+A</kbd> -> Apply -> Scale, while the low poly object is selected in object mode. 
 
 ![triangulate](triangulate.webp)
 
@@ -55,13 +55,13 @@ To create a linked duplicate, simply select your low-poly object and hit Alt+D, 
 
 ![Outliner Names](outliner-names.webp)
 
-I'm going to name the new object "Low Poly" and the first one "Bake Target" (The names don't matter but it's nice to be organized)
+I'm going to name the new object `Low Poly` and the first one `Bake Target` (The names don't matter but it's nice to be organized).
 
 ![Object Data](object-data.webp)
 
-This next part is very important, you must set the Bake Target to source it's materials from "Object" instead of "Data" this way the two linked objects can have different materials. This is done as shown above in the material tab for the Bake Target Object
+This next part is very important, you must set the `Bake Target` to source it's materials from "Object" instead of "Data". This way the two linked objects can have different materials. This is done as shown above in the material tab for the `Bake Target` Object
 
-You can then create a material for it which I will also call "Bake Target", I will also create a new material for the "Low Poly" object and call it "Low Poly"
+You can then create a material for it which I will also call `Bake Target`, I will also create a new material for the `Low Poly` object and call it `Low Poly`.
 
 # Setting up Materials
 
@@ -71,11 +71,11 @@ The rest of this process will be done in the shading tab so we can switch there.
 
 ![Material Nodes](material-nodes.webp)
 
-With the bake target selected we will add 3 texture nodes to it's material. Because I'm doing PBR these will be Albedo, Normal & Roughness (I will get into metalness later in this tutorial). These texture nodes should have their colour space set to "sRGB" for the Albedo and "Non-Color" for the others. You should NOT connect these nodes to anything.
+With the bake target selected we will add 3 texture nodes to it's material. Because I'm using a PBR workflow, these will be Albedo, Normal & Roughness (I will get into metalness later in this tutorial). These texture nodes should have their colour space set to "sRGB" for the Albedo and "Non-Color" for the others. You should NOT connect these nodes to anything.
 
 ![Pasted Nodes](pasted-nodes.webp)
 
-You can then copy & paste these nodes into the material for the "Low Poly" object. Then connect the nodes like shown here.
+You can then copy & paste these nodes into the material for the `Low Poly` object. Then connect the nodes like shown here.
 
 ![Invert Green](invert-green.webp)
 
@@ -83,7 +83,7 @@ If you use DirectX style normal maps (Like I do in ASO), you will need to add an
 
 ![Weird Shiny](weird-shiny.webp)
 
-Your low poly will look weird and shiny, that is because our baked textures are all black at the moment, that is OK, it will look correct after we are done baking.
+Your low poly will look weird and shiny, that is because our baked textures are all black at the moment, that is OK. It will look correct after we are done baking.
 
 Now that everything is set up, we can start looking at the actual baking UI.
 
@@ -103,13 +103,13 @@ Expanding the bake controls will give you access to several new options.
 
 ![Normal Baking](normal-baking.webp)
 
-We will start by baking the normal map. To do so we must first select "Normal" from the Bake Type combo box. You will also want to check "Selected to Active". For users of DirectX style normal maps like myself you will also need to set the G channel to "-Y". If you are using OpenGL style normal maps you can leave it as is.
+We will start by baking the normal map. To do so we must first select "Normal" from the Bake Type combo box. You will also want to check "Selected to Active". For users of DirectX style normal maps, like myself, you will also need to set the G channel to "-Y". If you are using OpenGL style normal maps you can leave it as is.
 
 # Performing the Bake
 
 ![Selected To Active](selected-to-active.webp)
 
-Ok its finally bake time, select your High Poly asset then press Ctrl and select your Bake Target this sets the High poly as selected and your Bake Target as Active. If everything is selected correctly your outliner should look like the image above. With a dark orange highlight on the high poly object and bright orange for the Bake Target.
+Ok its finally bake time, select your High Poly asset then press Ctrl and select your `Bake Target` this sets the High poly as selected and your `Bake Target` as Active. If everything is selected correctly your outliner should look like the image above. With a dark orange highlight on the high poly object and bright orange for the `Bake Target`.
 
 ![Select Normal Node](select-normal-node.webp)
 
@@ -125,7 +125,7 @@ After some amount of processing time, you should see a preview of the normal map
 
 ![Messed Up Bake Normals](messed-up-bake-normals.webp)
 
-As you can see looking at our "Low Poly" object something is very off.
+As you can see looking at our `Low Poly` object something is very off.
 
 ![Extrusion And Max Ray Distance](extrusion-and-max-ray-distance.webp)
 
@@ -149,7 +149,7 @@ If our values are set properly we get a nice normal map without any artifacts.
 
 ![Bumpy Bowl](bumpy-bowl.webp)
 
-We can also now look at our "Low Poly" object and see that it looks nice and bumpy. But there is one tiny problem, It's far too shiny! This is because its roughness map is entirely black or 0.0, this corresponds to a mirror like shine. So of course our next step should be to bake a roughness map
+We can also now look at our `Low Poly` object and see that it looks nice and bumpy. But there is one tiny problem, It's far too shiny! This is because its roughness map is entirely black or 0.0, this corresponds to a mirror like shine. So of course our next step should be to bake a roughness map.
 
 # Baking a Roughness Map
 
@@ -163,7 +163,7 @@ Select "Roughness" for Bake Type and hit Bake again.
 
 ![Roughness Result](roughness-result.webp)
 
-After waiting for the bake to complete we now have a roughness map and the shininess of our bowl now looks correct. Last but certainly not least we need to bake albedo, this is the actual surface colour of our object.
+After waiting for the bake to complete we now have a roughness map and the shininess of our bowl looks correct. Last but certainly not least we need to bake albedo. This is the actual surface colour of our object.
 
 # Baking an Albedo Map
 
@@ -177,7 +177,7 @@ We set the Bake Type to "Diffuse" this time, but there is one more thing before 
 
 ![Bake Influence](bake-influence.webp)
 
-In the below the bake button under "Influence" you must uncheck "Direct" and "Indirect", otherwise blender will bake the lighting into your albedo texture. Now we can hit Bake
+In the below the bake button under "Influence" you must uncheck "Direct" and "Indirect", otherwise blender will bake the lighting into your albedo texture. Now we can hit Bake.
 
 ![Complete Bake](complete-bake.webp)
 
@@ -203,11 +203,11 @@ There is however one tiny consideration for metallic materials. For some reason 
 
 ![Hatchet](hatchet.webp)
 
-Lets use this hatchet as an example. You need to take the metallic parameter for the high poly mesh's material and hook it up to the *Emission Color* output
+Lets use this hatchet as an example. You need to take the metallic parameter for the high poly mesh's material and hook it up to the *Emission Color* output.
 
 ![Emission Colour](emission-colour.webp)
 
-Because ASO packs roughness and metal together I'm gonna send both through the Emission color using a "Combine Color" node (Note ASO uses R = Roughness, G = Metal, this is different from glTF). All you do now is locate the correct texture in your Bake Target and instead of baking Metal and Roughness you bake using "Emission" as the bake type instead.
+Because ASO packs roughness and metal together I'm gonna send both through the Emission color using a "Combine Color" node (Note ASO uses R = Roughness, G = Metal, this is different from glTF). All you do now is locate the correct texture in your `Bake Target` material and instead of baking Metal and Roughness you bake using "Emission" as the bake type instead.
 
 # Considerations for Mirrored Objects
 
