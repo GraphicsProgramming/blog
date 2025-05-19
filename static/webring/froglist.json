@@ -52,5 +52,11 @@
     "url": "https://blog.neon.moe/",
     "displayName": "Jens Pitkänen",
     "description": "A blog about programming, the small web, and arcane personal computing"
+  },
+  {
+    "name": "geometrian",
+    "url": "https://geometrian.com/",
+    "displayName": "Agatha Mallett",
+    "description": "Homepage of Agatha Mallett, including computer graphics research and many other projects!"
   }
 ]
