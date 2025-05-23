@@ -58,5 +58,11 @@
     "url": "https://geometrian.com/",
     "displayName": "Agatha Mallett",
     "description": "Homepage of Agatha Mallett, including computer graphics research and many other projects!"
+  },
+  {
+    "name": "jakobmaier.at",
+    "url": "https://www.jakobmaier.at/",
+    "displayName": "Jakob Maier",
+    "description": "A website where I share my projects and blog posts."
   }
 ]
