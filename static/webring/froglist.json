@@ -64,5 +64,11 @@
     "url": "https://www.jakobmaier.at/",
     "displayName": "Jakob Maier",
     "description": "A website where I share my projects and blog posts."
+  },
+  {
+    "name": "edthedev",
+    "url": "https://edward.delaporte.us/",
+    "displayName": "Edward Delaporte",
+    "description": "Interactive JavaScript art, example code, and reference links."
   }
 ]
