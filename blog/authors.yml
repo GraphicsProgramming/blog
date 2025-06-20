@@ -33,3 +33,12 @@ fletterio:
   page: true
   socials:
     github: Fletterio
+
+keptsecret:
+  name: Sorakrit Chonwattanagul
+  title: Junior Developer @ DevSH GP
+  url: https://github.com/keptsecret/
+  image_url: https://avatars.githubusercontent.com/u/27181108?v=4
+  page: true
+  socials:
+    github: keptsecret
