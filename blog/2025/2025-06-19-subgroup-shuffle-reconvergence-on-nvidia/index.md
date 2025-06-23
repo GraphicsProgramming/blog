@@ -66,7 +66,7 @@ etc...
 ```
 
 But wait, the SPIRV-provided operations all require your Vulkan physical device to have support the `GroupNonUniformArithmetic` capability.
-So, Nabla provides emulated versions for that too, and it's all compiled into a single templated struct call.
+So, Nabla provides emulated versions for that too, and both versions are compiled into a single templated struct call.
 
 ```cpp
 template<class Params, class BinOp, uint32_t ItemsPerInvocation, bool native>
@@ -129,7 +129,7 @@ control_barrier()
 ```
 
 At first glance, it looks fine, and it does produce the expected results for the most part... except in some very specific cases.
-And from some more testing and debugging to try and identify the cause, I've found the conditions to be: 
+And from some more testing and debugging to try and identify the cause, I've found the conditions to be:
 
 * using an Nvidia GPU
 * using emulated versions of subgroup operations
@@ -163,12 +163,12 @@ for (idx = 0; idx < VirtualWorkgroupSize / WorkgroupSize; idx++)
 
 Ultimately, we came to the conclusion that each subgroup invocation was probably somehow not in sync as each loop went on.
 Particularly, the last invocation that spends some extra time writing to shared memory may have been lagging behind.
-It is a simple fix to the emulated subgroup reduce and scan. A memory barrier was enough.
+It is a simple fix to the emulated subgroup reduce and scan. A subgroup barrier was enough.
 
 ```cpp
 T inclusive_scan(T value)
 {
-    memory_barrier()
+    control_barrier()
 
     rhs = shuffleUp(value, 1)
     value = value + (firstInvocation ? identity : rhs)
@@ -185,17 +185,8 @@ T inclusive_scan(T value)
 
 As a side note, using the `SPV_KHR_maximal_reconvergence` extension doesn't resolve this issue surprisingly.
 
-However, this was only a problem on Nvidia devices.
-And as the title of this article states, it's unclear whether this is a bug in Nvidia's SPIRV compiler or subgroup shuffle operations just do not imply reconvergence in the spec.
+However, this problem was only observed on Nvidia devices.
+And as the title of this article states, it's unclear whether this is a bug in Nvidia's SPIRV compiler or subgroup shuffle operations just do not imply reconvergence in the Vulkan specification.
 
--------------------
-
-P.S. you may note in the source code that the memory barrier contains the workgroup memory mask, despite us only needing sync in the subgroup scope.
-
-```cpp
-spirv::memoryBarrier(spv::ScopeSubgroup, spv::MemorySemanticsWorkgroupMemoryMask | spv::MemorySemanticsAcquireMask);
-```
-
-This is because unfortunately, the subgroup memory mask doesn't seem to count as a storage class, at least according to the Vulkan SPIRV validator.
-Only the next step up in memory level is valid.
-I feel like there's possibly something missing here.
+----------------------------
+_This issue was observed happening inconsistently on Nvidia driver version 576.80, released 17th June 2025._
