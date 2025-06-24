@@ -36,9 +36,18 @@ fletterio:
 
 keptsecret:
   name: Sorakrit Chonwattanagul
-  title: Junior Developer @ DevSH GP
+  title: Associate Developer @ DevSH GP
   url: https://github.com/keptsecret/
   image_url: https://avatars.githubusercontent.com/u/27181108?v=4
   page: true
   socials:
     github: keptsecret
+
+devshgraphicsprogramming:
+  name: Mateusz Kielan
+  title: CTO of DevSH GP
+  url: https://github.com/devshgraphicsprogramming
+  image_url: https://avatars.githubusercontent.com/u/6894321?v=4
+  page: true
+  socials:
+    github: devshgraphicsprogramming

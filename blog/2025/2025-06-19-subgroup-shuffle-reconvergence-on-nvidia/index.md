@@ -3,16 +3,17 @@ title: 'Nvidia SPIR-V Compiler Bug or Do Subgroup Shuffle Operations Not Imply R
 slug: 'subgroup-shuffle-reconvergence-on-nvidia'
 description: "A look at the behavior behind Nabla's subgroup scan"
 date: '2025-06-19'
-authors: ['keptsecret']
+authors: ['keptsecret', 'devshgraphicsprogramming']
 tags: ['nabla', 'vulkan', 'article']
 last_update:
     date: '2025-06-19'
     author: keptsecret
 ---
 
-Reduce and scan operations are core building blocks in the world of parallel computing, and now Nabla has a new release with those operations made even faster for Vulkan at the subgroup and workgroup levels.
+Reduce and scan operations are core building blocks in the world of parallel computing, and now [Nabla has a new release](https://github.com/Devsh-Graphics-Programming/Nabla/tree/v0.6.2-alpha1) with those operations made even faster for Vulkan at the subgroup and workgroup levels.
 
-This article takes a brief look at the Nabla implementation for reduce and scan on the GPU in Vulkan, and then a discussion on expected reconvergence behavior after subgroup operations.
+This article takes a brief look at the Nabla implementation for reduce and scan on the GPU in Vulkan.
+Then, I discuss a missing reconvergence behavior that was expected after subgroup shuffle operations that was only observed on Nvidia devices.
 
 <!-- truncate -->
 
@@ -56,7 +57,8 @@ Inclusive:  4  10 12 15 22 23 23 28
 ## Nabla's subgroup scans
 
 We start with the most basic of building blocks: doing a reduction or a scan in the local subgroup of a Vulkan device.
-Pretty simple actually, since Vulkan already has subgroup arithmetic operations supported via SPIRV, and it's all available in Nabla.
+Pretty simple actually, since Vulkan already has subgroup arithmetic operations supported.
+Nabla exposes this via the [GLSL compatibility header](https://github.com/Devsh-Graphics-Programming/Nabla/blob/v0.6.2-alpha1/include/nbl/builtin/hlsl/glsl_compat/subgroup_arithmetic.hlsl) built of [HLSL SPIR-V inline intrinsics](https://github.com/Devsh-Graphics-Programming/Nabla/blob/v0.6.2-alpha1/include/nbl/builtin/hlsl/spirv_intrinsics/subgroup_arithmetic.hlsl).
 
 ```cpp
 nbl::hlsl::glsl::groupAdd(T value)
@@ -65,7 +67,7 @@ nbl::hlsl::glsl::groupExclusiveAdd(T value)
 etc...
 ```
 
-But wait, the SPIRV-provided operations all require your Vulkan physical device to have support the `GroupNonUniformArithmetic` capability.
+But wait, the SPIR-V-provided operations all require your Vulkan physical device to have support the `GroupNonUniformArithmetic` capability.
 So, Nabla provides emulated versions for that too, and both versions are compiled into a single templated struct call.
 
 ```cpp
@@ -80,6 +82,8 @@ struct reduction;
 ```
 
 The implementation of emulated subgroup scans make use of subgroup shuffle operations to access partial sums from other invocations in the subgroup.
+This is based on the [Kogge–Stone adder (KSA)](https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda), using $\log_2 n$ steps where $n$ is the subgroup size with all lanes active.
+It should also be noted that in cases like this where the SIMD/SIMT processor pays for all lanes regardless of whether or not they're active, the KSA design is faster than more theoretically work-efficient parallel scans like the Blelloch (which we use at the workgroup granularity).
 
 ```cpp
 T inclusive_scan(T value)
@@ -99,8 +103,9 @@ T inclusive_scan(T value)
 
 In addition, Nabla also supports passing vectors into these subgroup operations, so you can perform reduce or scans on up to subgroup size * 4 (for `vec4`) elements per call.
 Note that it expects the elements in the vectors to be consecutive and in the same order as the input array.
+This is because we've found through benchmarking that the instructing the GPU to do a vector load/store results in faster performance than any attempt at coalesced load/store.
 
-You can find all the implementations on the [Nabla repository](https://github.com/Devsh-Graphics-Programming/Nabla/blob/master/include/nbl/builtin/hlsl/subgroup2/arithmetic_portability_impl.hlsl)
+You can find all the implementations on the [Nabla repository](https://github.com/Devsh-Graphics-Programming/Nabla/blob/v0.6.2-alpha1/include/nbl/builtin/hlsl/subgroup2/arithmetic_portability_impl.hlsl)
 
 ## An issue with subgroup sync and reconvergence
 
@@ -110,6 +115,7 @@ Nabla also has implementations for workgroup reduce and scans that make use of t
 ```cpp
 ... workgroup scan code ...
 
+debug_barrier()
 for (idx = 0; idx < VirtualWorkgroupSize / WorkgroupSize; idx++)
 {
     value = getValueFromDataAccessor(memoryIdx)
@@ -123,10 +129,12 @@ for (idx = 0; idx < VirtualWorkgroupSize / WorkgroupSize; idx++)
         setValueToSharedMemory(smemIdx)
     }
 }
-control_barrier()
+workgroup_execution_and_memory_barrier()
 
 ... workgroup scan code ...
 ```
+
+_I should note that `memoryIdx` is unique and per-invocation, and also that shared memory is only written to in this step to be accessed in later steps._
 
 At first glance, it looks fine, and it does produce the expected results for the most part... except in some very specific cases.
 And from some more testing and debugging to try and identify the cause, I've found the conditions to be:
@@ -143,6 +151,7 @@ It was even more convincing when I moved the control barrier inside the loop and
 ```cpp
 ... workgroup scan code ...
 
+debug_barrier()
 for (idx = 0; idx < VirtualWorkgroupSize / WorkgroupSize; idx++)
 {
     value = getValueFromDataAccessor(memoryIdx)
@@ -155,20 +164,20 @@ for (idx = 0; idx < VirtualWorkgroupSize / WorkgroupSize; idx++)
     {
         setValueToSharedMemory(smemIdx)
     }
-    control_barrier()
+    workgroup_execution_and_memory_barrier()
 }
 
 ... workgroup scan code ...
 ```
 
 Ultimately, we came to the conclusion that each subgroup invocation was probably somehow not in sync as each loop went on.
-Particularly, the last invocation that spends some extra time writing to shared memory may have been lagging behind.
-It is a simple fix to the emulated subgroup reduce and scan. A subgroup barrier was enough.
+Particularly, the effect we're seeing is a shuffle done as if `value` is not in lockstep at the call site.
+We tested using a subgroup execution barrier and maximal reconvergence, and found out a memory barrier is enough.
 
 ```cpp
 T inclusive_scan(T value)
 {
-    control_barrier()
+    memory_barrier()
 
     rhs = shuffleUp(value, 1)
     value = value + (firstInvocation ? identity : rhs)
@@ -183,10 +192,56 @@ T inclusive_scan(T value)
 }
 ```
 
-As a side note, using the `SPV_KHR_maximal_reconvergence` extension doesn't resolve this issue surprisingly.
-
 However, this problem was only observed on Nvidia devices.
-And as the title of this article states, it's unclear whether this is a bug in Nvidia's SPIRV compiler or subgroup shuffle operations just do not imply reconvergence in the Vulkan specification.
+
+As a side note, using the `SPV_KHR_maximal_reconvergence` extension doesn't resolve this issue surprisingly.
+I feel I should point out that many presentations and code listings seem to give an impression subgroup shuffle operations execute in lockstep based on the very simple examples provided.
+For instance, [the example in this presentation](https://vulkan.org/user/pages/09.events/vulkanised-2025/T08-Hugo-Devillers-SaarlandUniversity.pdf) correctly demonstrates where invocations in a tangle are reading and storing to SSBO, but may mislead readers into not considering the Availability and Visibility for other scenarios that need it.
+Specifically, it does not have an intended read-after write if invocations in a tangle execute in lockstep.
+(With that said, since subgroup operations are SSA and take arguments "by copy", this discussion of Memory Dependencies and availability-visibility is not relevant to our problem, but just something to be aware of.)
+
+### A minor detour onto the performance of native vs. emulated on Nvidia devices
+
+I think this observation warrants a small discussion section of its own.
+The table below are some numbers from our benchmark measured through Nvidia's Nsight Graphics profiler of a subgroup inclusive scan using native SPIR-V instructions and our emulated version.
+
+_Native_
+
+| Workgroup size | SM throughput (%) | CS warp occupancy (%) | # registers | Dispatch time (ms) |
+| :------------: | :---------------: | :-------------------: | :---------: | :----------------: |
+| 256           | 41.6              | 90.5                  | 16            | 27                |
+| 512           | 41.4              | 89.7                  | 16            | 27.15             |
+| 1024          | 40.5              | 59.7                  | 16            | 27.74             |
+
+_Emulated_
+
+| Workgroup size | SM throughput (%) | CS warp occupancy (%) | # registers | Dispatch time (ms) |
+| :------------: | :---------------: | :-------------------: | :---------: | :----------------: |
+| 256           | 37.9              | 90.7                  | 16            | 12.22             |
+| 512           | 37.7              | 90.3                  | 16            | 12.3              |
+| 1024          | 37.1              | 60.5                  | 16            | 12.47             |
+
+These numbers are baffling to say the least, particularly the fact that our emulated subgroup scans are twice as fast than the native solution.
+It should be noted that this is with the subgroup barrier in place, not that we saw any marked decrease in performance compared to earlier versions without it.
+
+An potential explanation for this may be that Nvidia has to consider any inactive invocations in a subgroup, having them behave as if they contribute the identity $I$ element to the scan.
+Our emulated scan instead requires people call the arithmetic in subgroup uniform fashion.
+If that is not the case, this seems like a cause for concern for Nvidia's SPIR-V compiler.
+
+### What could cause this behavior on Nvidia? — The Independent Program Counter
+
+We think a potential culprit for this could be Nvidia's Independent Program Counter (IPC) that was introduced with the Volta architecture.
+
+Prior to Volta, all threads in a subgroup share the same program counter, which handles scheduling of instructions across all those threads.
+This means all threads in the same subgroup execute the same instruction at any given time.
+Therefore, when you have a branch in the program flow across threads in the same subgroup, all execution paths generally have to be executed and mask off threads that should not be active for that path.
+
+With Volta up to now, each thread has its own program counter that allows it to execute independently of other threads in the same subgroup.
+This also provides a new possibility on Nvidia devices, where you can now synchronize threads in the same subgroup.
+In CUDA, this is exposed through `__syncwarp()`, and we can do similar in Vulkan using subgroup control barriers.
+It's entirely possible that each subgroup shuffle operation does not run in lockstep, with the branching introduced in the loop, which would be why that is our solution to the problem for now.
+
+In the end, it's unclear whether this is a bug in Nvidia's SPIR-V compiler or subgroup shuffle operations just do not imply reconvergence in the Vulkan specification.
 
 ----------------------------
 _This issue was observed happening inconsistently on Nvidia driver version 576.80, released 17th June 2025._
