@@ -241,7 +241,66 @@ This also provides a new possibility on Nvidia devices, where you can now synchr
 In CUDA, this is exposed through `__syncwarp()`, and we can do similar in Vulkan using subgroup control barriers.
 It's entirely possible that each subgroup shuffle operation does not run in lockstep, with the branching introduced in the loop, which would be why that is our solution to the problem for now.
 
-In the end, it's unclear whether this is a bug in Nvidia's SPIR-V compiler or subgroup shuffle operations just do not imply reconvergence in the Vulkan specification.
+In the end, it's unclear whether this is a bug in Nvidia's SPIR-V compiler or subgroup shuffle operations actually do not imply reconvergence in the Vulkan specification.
+Unfortunately, I couldn't find anything explicit mention in the SPIR-V specification that confirmed this, even with hours of scouring the spec.
+
+## What does this implication mean for subgroup operations?
+
+Consider what it means if subgroup convergence doesn't guarantee that active tangle invocations execute a subgroup operation in lockstep.
+
+Subgroup ballot and ballot arithmetic are two where you don't have to consider lockstepness, because it is expected that the return value of ballot to be uniform in a tangle and it is known exactly what it should be.
+Similarly, for subgroup broadcasts, first the value being broadcast needs to computed, say from invocation K.
+Even if other invocations don't run in lockstep, they can't read the value until invocation K broadcasts it if they want to read the same value (uniformity) and you know what value should be read (broadcasting invocation can check it got the same value back).
+
+On the flip side, reductions will always produce a uniform return value for all invocations, even if you reduce a stale or out-of-lockstep input value.
+
+Meanwhile, subgroup operations that don't return tangle-uniform values, such as shuffles and scans, would only produce the expected result only if performed on constants or variables written with an execution and memory dependency.
+These operations can give different results per invocation so there's no implied uniformity, which means there's no reason to expect any constraints on their apparent lockstepness being implied transitively through the properties of the return value.
+
+The important consideration then is how a subgroup operation is implemented.
+When a subgroup operation doesn't explicitly state that they all have to execute at the same time by all invocations, we can imagine a scenario where a shuffle may be as simple as the receiving invocation snooping another's register without requiring any action on the latter's part.
+And that comes with obvious IPC dangers, as snooping it before it gets written or after it gets overwritten if there are no other execution dependencies will surely provide inconsistent results.
+
+This leads to code listings like the following becoming undefined behavior simply by changing the `Broadcast` into a `Shuffle`.
+
+```cpp
+// Broadcasting after computation
+// OK, only counts active invocations in tangle (doesn't change)
+int count = subgroupBallotBitCount(true);
+// OK, done on a constant
+int index = subgroupExclusiveAdd(1);
+int base, base_slot;
+if (subgroupElect())
+    base_slot = atomicAdd(dst.size,count);
+// NOT OK, `base_slot` not available, visible or other invocations may even have raced ahead of the elected one
+// Not every invocation will see the correct value of `base_slot` in the elected one memory dependency not ensured
+base = subgroupBroadcastFirst(base_slot);
+```
+
+Similarly again, with [this example from the Khronos blog on maximal reconvergence](https://www.khronos.org/blog/khronos-releases-maximal-reconvergence-and-quad-control-extensions-for-vulkan-and-spir-v)
+
+```cpp
+// OK, thanks to subgroup uniform control flow, no wiggle room here (need to know all invcocation values)
+if (subgroupAny(needs_space)) {
+   // OK, narrowly because `subgroupBallot` returns a ballot thats uniform in a tangle 
+   uvec4 mask = subgroupBallot(needs_space);
+   // OK, because `mask` is tangle-uniform
+   uint size = subgroupBallotBitCount(mask);
+   uint base = 0;
+   if (subgroupElect())
+     base = atomicAdd(b.free, size);
+
+    // NOT OK if replaced Broadcast with Shuffle, non-elected invocations could race ahead or not see (visibility) the `base` value in the elected invocation before that one would excecute a shuffle
+    base = subgroupBroadcastFirst(base);
+    // OK, but only because `mask` is tangle-uniform
+    uint offset = subgroupBallotExclusiveBitCount(mask);
+
+    if (needs_space)
+      b.data[base + offset] = ...;
+}
+```
+
+With all that said, it needs to be noted that one can't expect every instruction to run in lockstep, as that would negate the advantages of Nvidia's IPC.
 
 ----------------------------
 _This issue was observed happening inconsistently on Nvidia driver version 576.80, released 17th June 2025._
