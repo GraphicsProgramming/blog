@@ -27,9 +27,27 @@ jaked:
 
 fletterio:
   name: Francisco Letterio
-  title: Junior Developer @ DevSH GP
+  title: Junior Developer @ DevSH Graphics Programming Sp. z O.O.
   url: https://github.com/Fletterio
   image_url: https://avatars.githubusercontent.com/u/40742817?v=4
   page: true
   socials:
     github: Fletterio
+
+keptsecret:
+  name: Sorakrit Chonwattanagul
+  title: Associate Developer @ DevSH Graphics Programming Sp. z O.O.
+  url: https://github.com/keptsecret/
+  image_url: https://avatars.githubusercontent.com/u/27181108?v=4
+  page: true
+  socials:
+    github: keptsecret
+
+devshgraphicsprogramming:
+  name: Mateusz Kielan
+  title: CTO of DevSH Graphics Programming Sp. z O.O.
+  url: https://www.devsh.eu/
+  image_url: https://avatars.githubusercontent.com/u/6894321?v=4
+  page: true
+  socials:
+    github: devshgraphicsprogramming

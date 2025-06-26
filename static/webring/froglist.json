@@ -76,5 +76,11 @@
     "url": "https://rtarun9.github.io/",
     "displayName": "Tarun R",
     "description": "Personal site with projects and blogs that are rarely updated"
+  },
+  {
+    "name": "devsh",
+    "url": "https://www.devsh.eu/",
+    "displayName": "DevSH Graphics Programming",
+    "description": "Homepage of DevSH Graphics Programming: Computer Graphics, Computer Geometry & Vision and High Performance Computing Consultancy"
   }
 ]
