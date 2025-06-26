@@ -1,6 +1,6 @@
 ---
-title: 'Nvidia SPIR-V Compiler Bug or Do Subgroup Shuffle Operations Not Imply Reconvergence?'
-slug: 'subgroup-shuffle-reconvergence-on-nvidia'
+title: 'Nvidia SPIR-V Compiler Bug or Do Subgroup Shuffle Operations Not Imply Execution Dependency?'
+slug: 'subgroup-shuffle-execution-dependency-on-nvidia'
 description: "A look at the behavior behind Nabla's subgroup scan"
 date: '2025-06-19'
 authors: ['keptsecret', 'devshgraphicsprogramming']
@@ -13,7 +13,8 @@ last_update:
 Reduce and scan operations are core building blocks in the world of parallel computing, and now [Nabla has a new release](https://github.com/Devsh-Graphics-Programming/Nabla/tree/v0.6.2-alpha1) with those operations made even faster for Vulkan at the subgroup and workgroup levels.
 
 This article takes a brief look at the Nabla implementation for reduce and scan on the GPU in Vulkan.
-Then, I discuss a missing reconvergence behavior that was expected after subgroup shuffle operations that was only observed on Nvidia devices.
+
+Then, I discuss a missing excution dependency expected for a subgroup shuffle operation, which was only a problem on Nvidia devices in some test cases.
 
 <!-- truncate -->
 
@@ -91,6 +92,7 @@ T inclusive_scan(T value)
     rhs = shuffleUp(value, 1)
     value = value + (firstInvocation ? identity : rhs)
 
+    [unroll]
     for (i = 1; i < SubgroupSizeLog2; i++)
     {
         nextLevelStep = 1 << i
@@ -110,6 +112,7 @@ You can find all the implementations on the [Nabla repository](https://github.co
 ## An issue with subgroup sync and reconvergence
 
 Now, onto a pretty significant, but strangely obscure, problem that I ran into during unit testing this prior to release.
+[See the unit tests.](https://github.com/Devsh-Graphics-Programming/Nabla-Examples-and-Tests/blob/master/23_Arithmetic2UnitTest/app_resources/testSubgroup.comp.hlsl)
 Nabla also has implementations for workgroup reduce and scans that make use of the subgroup scans above, and one such section looks like this.
 
 ```cpp
@@ -134,17 +137,17 @@ workgroup_execution_and_memory_barrier()
 ... workgroup scan code ...
 ```
 
-_I should note that `memoryIdx` is unique and per-invocation, and also that shared memory is only written to in this step to be accessed in later steps._
+_I should note that this is the first level of scans for the workgroup scope. It is only one step of the algorithm and the data accesses are completely independent. Thus, `memoryIdx` is unique and per-invocation, and also that shared memory is only written to in this step to be accessed in later steps._
 
 At first glance, it looks fine, and it does produce the expected results for the most part... except in some very specific cases.
-And from some more testing and debugging to try and identify the cause, I've found the conditions to be:
+After some more testing and debugging to try and identify the cause, I've found the conditions to be:
 
 * using an Nvidia GPU
 * using emulated versions of subgroup operations
 * a decent number of iterations in the loop (in this case at least 8).
 
 I tested this on an Intel GPU, to be sure, and the workgroup scan ran correctly.
-That was very baffling initially. And the results produced on an Nvidia device looked like a sync problem.
+This was very baffling initially. And the results produced on an Nvidia device looked like a sync problem.
 
 It was even more convincing when I moved the control barrier inside the loop and it immediately produced correct scan results.
 
@@ -172,7 +175,8 @@ for (idx = 0; idx < VirtualWorkgroupSize / WorkgroupSize; idx++)
 
 Ultimately, we came to the conclusion that each subgroup invocation was probably somehow not in sync as each loop went on.
 Particularly, the effect we're seeing is a shuffle done as if `value` is not in lockstep at the call site.
-We tested using a subgroup execution barrier and maximal reconvergence, and found out a memory barrier is enough.
+We tested using a subgroup execution barrier and maximal reconvergence.
+Strangely enough, just a memory barrier also fixed it, which it shouldn't have as subgroup shuffles are magical intrinsics that take arguments by copy and don't really deal with accessing any memory locations (SSA form).
 
 ```cpp
 T inclusive_scan(T value)
@@ -182,9 +186,11 @@ T inclusive_scan(T value)
     rhs = shuffleUp(value, 1)
     value = value + (firstInvocation ? identity : rhs)
 
+    [unroll]
     for (i = 1; i < SubgroupSizeLog2; i++)
     {
         nextLevelStep = 1 << i
+        memory_barrier()
         rhs = shuffleUp(value, nextLevelStep)
         value = value + (nextLevelStep out of bounds ? identity : rhs)
     }
@@ -196,16 +202,21 @@ However, this problem was only observed on Nvidia devices.
 
 As a side note, using the `SPV_KHR_maximal_reconvergence` extension doesn't resolve this issue surprisingly.
 I feel I should point out that many presentations and code listings seem to give an impression subgroup shuffle operations execute in lockstep based on the very simple examples provided.
+
 For instance, [the example in this presentation](https://vulkan.org/user/pages/09.events/vulkanised-2025/T08-Hugo-Devillers-SaarlandUniversity.pdf) correctly demonstrates where invocations in a tangle are reading and storing to SSBO, but may mislead readers into not considering the Availability and Visibility for other scenarios that need it.
-Specifically, it does not have an intended read-after write if invocations in a tangle execute in lockstep.
+
+Such simple examples are good enough to demonstrate the purpose of the extension, but fail to elaborate on specific details.
+If it did have a read-after-write between subgroup invocations, subgroup scope memory dependencies would have been needed.
+
 (With that said, since subgroup operations are SSA and take arguments "by copy", this discussion of Memory Dependencies and availability-visibility is not relevant to our problem, but just something to be aware of.)
 
 ### A minor detour onto the performance of native vs. emulated on Nvidia devices
 
+Since all recent Nvidia GPUs support subgroup arithmetic SPIR-V capability, why were we using emulation with shuffles?
 I think this observation warrants a small discussion section of its own.
 The table below are some numbers from our benchmark measured through Nvidia's Nsight Graphics profiler of a subgroup inclusive scan using native SPIR-V instructions and our emulated version.
 
-_Native_
+#### Native
 
 | Workgroup size | SM throughput (%) | CS warp occupancy (%) | # registers | Dispatch time (ms) |
 | :------------: | :---------------: | :-------------------: | :---------: | :----------------: |
@@ -213,7 +224,7 @@ _Native_
 | 512           | 41.4              | 89.7                  | 16            | 27.15             |
 | 1024          | 40.5              | 59.7                  | 16            | 27.74             |
 
-_Emulated_
+#### Emulated
 
 | Workgroup size | SM throughput (%) | CS warp occupancy (%) | # registers | Dispatch time (ms) |
 | :------------: | :---------------: | :-------------------: | :---------: | :----------------: |
@@ -222,11 +233,11 @@ _Emulated_
 | 1024          | 37.1              | 60.5                  | 16            | 12.47             |
 
 These numbers are baffling to say the least, particularly the fact that our emulated subgroup scans are twice as fast than the native solution.
-It should be noted that this is with the subgroup barrier in place, not that we saw any marked decrease in performance compared to earlier versions without it.
+It should be noted that this is with the subgroup barrier before every shuffle, we did not see any marked decrease in performance.
 
 An potential explanation for this may be that Nvidia has to consider any inactive invocations in a subgroup, having them behave as if they contribute the identity $I$ element to the scan.
 Our emulated scan instead requires people call the arithmetic in subgroup uniform fashion.
-If that is not the case, this seems like a cause for concern for Nvidia's SPIR-V compiler.
+If that is not the case, this seems like a cause for concern for Nvidia's SPIR-V to SASS compiler.
 
 ### What could cause this behavior on Nvidia? — The Independent Program Counter
 
@@ -236,25 +247,39 @@ Prior to Volta, all threads in a subgroup share the same program counter, which 
 This means all threads in the same subgroup execute the same instruction at any given time.
 Therefore, when you have a branch in the program flow across threads in the same subgroup, all execution paths generally have to be executed and mask off threads that should not be active for that path.
 
+<figure class="image">
+    ![Pascal and prior SIMT model](pascal_simt_model.png "Pascal and prior SIMT model")
+    <figcaption>Thread scheduling under the SIMT warp execution model of Pascal and earlier NVIDIA GPUs. Taken from [NVIDIA TESLA V100 GPU ARCHITECTURE](https://images.nvidia.com/content/volta-architecture/pdf/volta-architecture-whitepaper.pdf)</figcaption>
+</figure>
+
 With Volta up to now, each thread has its own program counter that allows it to execute independently of other threads in the same subgroup.
 This also provides a new possibility on Nvidia devices, where you can now synchronize threads in the same subgroup.
+The active invocations still have to execute the same instruction, but it can be at different locations in the program (e.g. different iterations of a loop).
+
+<figure class="image">
+    ![Volta Independent Thread Scheduling model](volta_scheduling_model.png "Volta Independent Thread Scheduling model")
+    <figcaption>Independent thread scheduling in Volta architecture onwards interleaving execution from divergent branches, using an explicit sync to reconverge threads. Taken from [NVIDIA TESLA V100 GPU ARCHITECTURE](https://images.nvidia.com/content/volta-architecture/pdf/volta-architecture-whitepaper.pdf)</figcaption>
+</figure>
+
 In CUDA, this is exposed through `__syncwarp()`, and we can do similar in Vulkan using subgroup control barriers.
-It's entirely possible that each subgroup shuffle operation does not run in lockstep, with the branching introduced in the loop, which would be why that is our solution to the problem for now.
+It's entirely possible that each subgroup shuffle operation does not run in lockstep with the branching introduced, which would be why that is our solution to the problem for now.
 
-In the end, it's unclear whether this is a bug in Nvidia's SPIR-V compiler or subgroup shuffle operations actually do not imply reconvergence in the Vulkan specification.
-Unfortunately, I couldn't find anything explicit mention in the SPIR-V specification that confirmed this, even with hours of scouring the spec.
+Unfortunately, I couldn't find anything explicit mention in the SPIR-V specification that confirmed whether subgroup shuffle operations actually imply execution dependency, even with hours of scouring the spec.
 
-## What does this implication mean for subgroup operations?
+So then we either have...
+
+## This is a gray area of the Subgroup Shuffle Spec and allowed Undefined Behaviour
 
 Consider what it means if subgroup convergence doesn't guarantee that active tangle invocations execute a subgroup operation in lockstep.
 
-Subgroup ballot and ballot arithmetic are two where you don't have to consider lockstepness, because it is expected that the return value of ballot to be uniform in a tangle and it is known exactly what it should be.
+Subgroup ballot and ballot arithmetic are two where you don't have to consider lockstepness, because it is expected that the return value of ballot to be uniform in a tangle, and as a corollary, it is known exactly what it should be.
+
 Similarly, for subgroup broadcasts, first the value being broadcast needs to computed, say from invocation K.
 Even if other invocations don't run in lockstep, they can't read the value until invocation K broadcasts it if they want to read the same value (uniformity) and you know what value should be read (broadcasting invocation can check it got the same value back).
 
 On the flip side, reductions will always produce a uniform return value for all invocations, even if you reduce a stale or out-of-lockstep input value.
 
-Meanwhile, subgroup operations that don't return tangle-uniform values, such as shuffles and scans, would only produce the expected result only if performed on constants or variables written with an execution and memory dependency.
+Meanwhile, subgroup operations that don't return tangle-uniform values, such as shuffles and scans, would only produce the expected result only if performed on constants or variables written with an execution dependency.
 These operations can give different results per invocation so there's no implied uniformity, which means there's no reason to expect any constraints on their apparent lockstepness being implied transitively through the properties of the return value.
 
 The important consideration then is how a subgroup operation is implemented.
@@ -301,6 +326,11 @@ if (subgroupAny(needs_space)) {
 ```
 
 With all that said, it needs to be noted that one can't expect every instruction to run in lockstep, as that would negate the advantages of Nvidia's IPC.
+
+## Or a bug in Nvidia's SPIR-V to SASS compiler
+
+And crucially, it's impossible to know (or discuss in the case of a signed NDA) what's happening for the bug or performance regression with Nvidia.
+Unlike AMD's RDNA ISAs where we can verify that the compiler is doing what it should be doing using Radeon GPU Analyzer, the generated SASS is inaccessible and neither is the compiler public.
 
 ----------------------------
 _This issue was observed happening inconsistently on Nvidia driver version 576.80, released 17th June 2025._
