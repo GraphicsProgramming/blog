@@ -181,8 +181,7 @@ Strangely enough, just a memory barrier also fixed it, which it shouldn't have a
 ```cpp
 T inclusive_scan(T value)
 {
-    memory_barrier()
-
+    subgroup_execution_barrier()
     rhs = shuffleUp(value, 1)
     value = value + (firstInvocation ? identity : rhs)
 
@@ -190,7 +189,7 @@ T inclusive_scan(T value)
     for (i = 1; i < SubgroupSizeLog2; i++)
     {
         nextLevelStep = 1 << i
-        memory_barrier()
+        subgroup_execution_barrier()
         rhs = shuffleUp(value, nextLevelStep)
         value = value + (nextLevelStep out of bounds ? identity : rhs)
     }
