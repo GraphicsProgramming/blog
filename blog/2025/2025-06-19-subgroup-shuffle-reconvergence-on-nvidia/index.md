@@ -14,7 +14,7 @@ Reduce and scan operations are core building blocks in the world of parallel com
 
 This article takes a brief look at the Nabla implementation for reduce and scan on the GPU in Vulkan.
 
-Then, I discuss a missing excution dependency expected for a subgroup shuffle operation, which was only a problem on Nvidia devices in some test cases.
+Then, I discuss a missing execution dependency expected for a subgroup shuffle operation, which was only a problem on Nvidia devices in some test cases.
 
 <!-- truncate -->
 
@@ -105,7 +105,9 @@ T inclusive_scan(T value)
 
 In addition, Nabla also supports passing vectors into these subgroup operations, so you can perform reduce or scans on up to subgroup size * 4 (for `vec4`) elements per call.
 Note that it expects the elements in the vectors to be consecutive and in the same order as the input array.
-This is because we've found through benchmarking that the instructing the GPU to do a vector load/store results in faster performance than any attempt at coalesced load/store.
+This is because we've found through benchmarking that the instructing the GPU to do a vector load/store results in faster performance than any attempt at coalesced load/store with striding.
+
+We also found shuffles and vector arithmetic to be very expensive, and so having the least amount of data exchange between invocations and pre-scanning up to 4 elements within an invocation was significantly faster.
 
 You can find all the implementations on the [Nabla repository](https://github.com/Devsh-Graphics-Programming/Nabla/blob/v0.6.2-alpha1/include/nbl/builtin/hlsl/subgroup2/arithmetic_portability_impl.hlsl)
 
@@ -261,7 +263,36 @@ The active invocations still have to execute the same instruction, but it can be
 </figure>
 
 In CUDA, this is exposed through `__syncwarp()`, and we can do similar in Vulkan using subgroup control barriers.
-It's entirely possible that each subgroup shuffle operation does not run in lockstep with the branching introduced, which would be why that is our solution to the problem for now.
+
+The IPC also enables starvation-free algorithms on CUDA, along with the use of mutexes where a thread that attempts to acquire a mutex is guaranteed to eventually succeed. Consider the example in the Volta whitepaper of a doubly linked list:
+
+```cpp
+__device__ void insert_after(Node* a, Node* b)
+{
+    Node* c;
+    lock(a);
+    lock(a->next);
+    c = a->next;
+
+    a->next = b;
+    b->prev = a;
+
+    b->next = c;    
+    c->prev = b;
+
+    unlock(c);
+    unlock(a);
+}
+```
+
+The diagram shows how, with IPC, even if thread K holds the lock for node A, another thread J in the same subgroup (warp in the case of CUDA) can wait for the lock to become available and not affect K's progress.
+
+<figure class="image">
+    ![Doubly Linked List lock](linked_list_lock.png "Doubly Linked List lock")
+    <figcaption>Locks are acquired for nodes A and C, shown on the left, before the threads inserts node B shown on the right. Taken from [NVIDIA TESLA V100 GPU ARCHITECTURE](https://images.nvidia.com/content/volta-architecture/pdf/volta-architecture-whitepaper.pdf)</figcaption>
+</figure>
+
+In our case however, it's entirely possible that each subgroup shuffle operation does not run in lockstep with the branching introduced, which would be why subgroup execution barriers are our solution to the problem for now.
 
 Unfortunately, I couldn't find anything explicit mention in the SPIR-V specification that confirmed whether subgroup shuffle operations actually imply execution dependency, even with hours of scouring the spec.
 
