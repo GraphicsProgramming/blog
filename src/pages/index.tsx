@@ -38,7 +38,7 @@ function HomepageHeader() {
           </Link>
           <Link
             className="button button--secondary button--lg test"
-            to="https://discord.gg/"
+            to="https://discord.gg/graphicsprogramming"
           >
             Join our Discord Server
           </Link>
