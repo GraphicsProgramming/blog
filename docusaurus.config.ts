@@ -132,7 +132,7 @@ const config: Config = {
           items: [
             {
               label: "Discord",
-              href: "https://discord.gg/graphicsprogramming",
+              href: "https://discord.graphics-programming.org/",
             },
             {
               label: "YouTube",
