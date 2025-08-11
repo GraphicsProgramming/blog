@@ -25,7 +25,7 @@ function HomepageHeader() {
           className={styles.ytEmbed}
           width="960"
           height="520"
-          src="https://www.youtube.com/embed/E07I1VRYlcg?si=PUsHfqq3YKLIp2kS"
+          src="https://www.youtube.com/embed/V9vQ3kTqhj0?si=pb8qe-wIhYElMQQy"
           title="YouTube video player"
           frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
