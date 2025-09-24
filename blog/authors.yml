@@ -9,7 +9,7 @@ jaker:
 
 deccer:
   name: deccer
-  title: Graphics Programming Beginner
+  title: Combative Axis
   url: https://github.com/deccer
   image_url: https://avatars.githubusercontent.com/u/15695435?v=4
   page: true
@@ -51,3 +51,9 @@ devshgraphicsprogramming:
   page: true
   socials:
     github: devshgraphicsprogramming
+
+eduameli:
+  name: eduameli
+  title: graphics programming noob
+  url: https://eduameli.gitlab.io
+  image_url: https://avatars.githubusercontent.com/u/165940955?v=4
