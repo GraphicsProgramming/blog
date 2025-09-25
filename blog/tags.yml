@@ -14,6 +14,6 @@ showcase:
   description: Graphics Programming Discord Server Showcase
 
 faq:
-  label: FAQ
-  permalink: /FAQ
+  label: faq
+  permalink: /faq
   description: Frequently Asked Questions
