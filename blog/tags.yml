@@ -13,3 +13,7 @@ showcase:
   permalink: /showcase
   description: Graphics Programming Discord Server Showcase
 
+faq:
+  label: faq
+  permalink: /faq
+  description: Frequently Asked Questions
