@@ -27,7 +27,7 @@ In this article, we'll cover:
 4. The template system
 5. How this all helped shape the look of the game's UI
 
-Other topics, such as data binding (don't be fooled by this only being two words, this is *type-checked* on game startup), callbacks, the click feedback system, the dialog transition system, text rendering (which, [hates you](https://faultlore.com/blah/text-hates-you/)), the UI loader (a rather vital part), the lame UI editor, the script wait system, the UI flow and layout system, how the UI is rendered, the "vis stack" (again, don't be fooled by it only being two words), dialog navigation (yep), the UI event system, lists, the placeholder text system, and how the data is actually organized engine-side will be left to future articles.
+Other topics, such as data binding (don't be fooled by this only being two words, this is *type-checked* on game startup), callbacks, the click feedback system, the dialog transition system, text rendering (which, [hates you](https://faultlore.com/blah/text-hates-you/)), the UI loader (a rather vital part), the lame UI editor, the script wait system, the UI flow and layout system, how the UI is rendered, the "vis stack" (again, don't be fooled by it only being two words), mouse vs gamepad navigation, the UI event system, lists, the placeholder text system, and how the data is actually organized engine-side will be left to future articles.
 
 ![Menu Overview](ui-overview.png)
 
@@ -353,14 +353,12 @@ The template system becomes rather mandatory.
 
 ## In Conclusione
 
-If there's enough interest, there can be future articles. It's not as if there's a shortage of topics to cover. (See: intro.)
+If there's enough interest, there can be future articles. It's not as if there's a shortage of topics to cover. (See: intro.) TGUI has many, many more features and lines and lines of code to cover. I would be happy to explain anything in more detail if requested.
 
-The 
+In the mean time, Twin Gods is available on [Steam](https://store.steampowered.com/app/2495430/Twin_Gods/) as of this writing as a closed test. Ping me on the GP Discord or [Bluesky](https://bsky.app/profile/domiran.bsky.social) for a key.
 
 P.S.:
 It's not a typo, it's Latin. Get cultured.
-
-
 
 ## Notes
 
