@@ -109,13 +109,15 @@ Here's the definition of the material used above ([\*5](#note-id-5)):
 </material>
 ```
 
-I won't show the shader but it is a basic "9-slice" shader with suport for coloring at the 4 corners and a border color, hence the 5 uniforms. **It cannot be overstated how important materials were to the look of Twin Gods' UI, and the ease of development.** The screenshot shown in the top of the article represents the third major "rewrite" of the UI.
+I won't show the shader but it is a basic "9-slice" shader with suport for coloring at the 4 corners and a border color, hence the 5 uniforms.
+
+**It cannot be overstated how important materials were to the look of Twin Gods' UI, and the ease of development.** The screenshot shown in the top of the article represents the third major "rewrite" of the UI.
 
 More on how this helped a little later.
 
 ## UI Styles
 
-You'll notice in the material definition that there is are `color` attributes not set to any colors you know. `value` can be set to a hex color starting with a "#", or it can be set to a named color defined in the "UI Styles" file. "UI Styles.xml" is a lovely companion piece to "UI Frames.xml".
+You'll notice in the material definition that there are `color` attributes not set to any colors you know. `value` can be set to a hex color starting with a "#", or it can be set to a named color defined in the "UI Styles" file. "UI Styles.xml" is a lovely companion piece to "UI Frames.xml".
 
 It can define colors:
 
@@ -138,13 +140,13 @@ It can even define the prefix folder used to determine where to pull fonts from 
 <FontStyles FontPrefix="fonts\nope">
 ```
 
-You'll notice on the UIFrame XML definition that there was `FontStyle` attribute, which makes it look like each dialog only supports a single.
+You'll also notice a `FontStyle` attribute, which makes it look like each dialog only supports a single font style.
 
 ![I Assure You](assure-you.png)
 
-Text format style will be covered in a later article.
+Text styling will be covered in a later article.
 
-In any case, the "UI Styles" file is a vague CSS-like system, any by CSS I mean I can specify color, font face, font size, shader, outline, and a few other things and that's basically it.
+In any case, the "UI Styles" file is a vague CSS-like system, and by CSS I mean I can specify color, font face, font size, shader, outline, and a few other things and that's basically it.
 
 I should note before anyone gets mad that if `DropShadow` appears in a `FontStyle`, the `Outline` color becomes the drop shadow color. 13 years of *cruft*!
 
@@ -186,7 +188,7 @@ This XML:
 <AcrossBox:test-field label:Text="Yaw" value:Text="No degrees." BackColor="Red" />
 ```
 
-Is expanded to become:
+Is expanded to:
 
 ```xml
 <AcrossBox Name="test-field" BackColor="Red">
@@ -199,15 +201,19 @@ Is expanded to become:
 
 ### Templated Attribute Resolution
 
-The template parser sees the same attribute (`BackColor`, in this case) on the same node, post-parse, as the top-level `Template` node and overwrites the template's attribute with the incoming real node. On the second `AcrossBox`, the template's original `BackColor="White"` stays because the incoming real node has no such attribute.
+The template parser sees the same attribute (`BackColor`, in this case) on the same node, post-parse, as the top-level `Template` node and overwrites the template's attribute with the incoming real node.
+
+On the second `AcrossBox`, the template's original `BackColor="White"` stays because the incoming real node has no such attribute.
 
 ### Template Attribute Expansion Assignment
 
-What about `label:Text` and `value:Text`? The syntax may be cursed but I could not live without this feature. It searches down the tree (depth only) until it finds a dialog with the given name and then sets the given attribute. This is part of the "grand success" of how templates work. Data binding abuses this whole-heartedly and quite literally makes some features possible.
+What about `label:Text` and `value:Text`? The syntax may be cursed but I could not live without this feature. It searches down the tree (depth only) until it finds a dialog with the given name and then sets the given attribute.
+
+This is part of the "grand success" of how templates work. Data binding abuses this whole-heartedly and quite literally makes some features possible.
 
 ### Improve the Look With Templates
 
-Getting back to our example, it still looks a little weird. The label is not a fixed size. We can make this a little better without putting a size everywhere. More XML.
+Getting back to our example, it looks weird. The label is not a fixed size. We can make this a little better without putting a size everywhere  -- since that is, after all, the entire point of TGUI's templates.
 
 ```xml
 <Template Name="test-label" Width="48" FontStyle="Short-Normal16" />
@@ -229,7 +235,7 @@ Yep, templates can have templates. I heard you like templates so I put a templat
 
 ![Template Fields 2](template-stuff-2.png)
 
-But we can do a little better, still. Let's remove the width, letting the flow system do all the work. We'll set a margin, add a texture, and some more fixed widths.
+But we can do a little better, still. Let's remove the width, letting the flow system do all the work. We'll set a margin, add a texture, and fixed widths only where necessary.
 
 ```xml
 <Template Name="test-label" Width="48" FontStyle="Short-Normal16" />
@@ -263,9 +269,13 @@ Where we've been and where we are.
 
 ![TGUI Mark 2](ui-mark-2.png) ![TGUI Mark 3](ui-mark-3.png)
 
-The first picture is "version 2" of the Twin Gods UI. The second picture is obviously the current iteration. Apart from the difference in navigation, note the *drastic* difference in coloration. One of Hauntlet's hallmark features as a dev tool is its in-game console. All UI-related data can be hot-reloaded in-game. *It cannot be understated* how important *fast iteration* is to game development in general. Being able to edit a file and see the result in-game immediately is *fabulous*. Hauntlet has a UI editor but nothing beats real data *and* being able to navigate it.
+The first picture is "version 2" of the Twin Gods UI. The second picture is obviously the current iteration. Apart from the difference in navigation, note the *drastic* difference in coloration.
 
-Materials were kind of revolutionary in the look of TGUI primarily because I could now apply colors. You might not know this but I'm rather bad when it comes to graphic design. However, I *eventually* realized one of the many reasons the older UI designs looked rather drab is because they lacked any kind of *texture* (in addition to their lack of contrast). I don't just mean tgas or pngs or jpgs. I mean variance. There are gradients all over the current UI iteration. There are borders. There is contrast. This may be a no-brainer to any of you experienced in UI design and you may be wondering, if I could hot-reload *all* UI data, why was it not enough to hot-reload textures and that `BackColor` attribute? Because now I could play with color schemes at large and ***quickly*** change everything in the UI with just a few edits in "UI Styles.xml". Combine this with the gradient support, and now I could quickly make colorful, pleasing patterns to splash across the screen.
+One of Hauntlet's hallmark features as a dev tool is its in-game console. All UI-related data can be hot-reloaded in-game. *It cannot be understated* how important *fast iteration* is to game development in general. Being able to edit a file and see the result in-game immediately is *fabulous*. Hauntlet has a UI editor but nothing beats real data *and* being able to navigate it.
+
+Materials were kind of revolutionary in the look of TGUI primarily because now I can apply colors. You might not know this but I'm rather bad when it comes to graphic design. However, I *eventually* realized one of the many reasons the older UI designs looked rather drab is because they lacked any kind of *texture* (in addition to their lack of contrast). I don't just mean tgas or pngs or jpgs. I mean variance. There are gradients all over the current UI iteration. There are borders. There is contrast.
+
+This may be a no-brainer to any of you experienced in UI design and you may be wondering, if I could hot-reload *all* UI data, why was it not enough to hot-reload textures and that `BackColor` attribute? Because now I could play with color schemes at large and ***quickly*** change everything in the UI with just a few edits in "UI Styles.xml". Combine this with the gradient support, and now I could quickly make colorful, pleasing patterns to splash across the screen.
 
 For a long time, the template system was just a way to avoid simply copy/pasting large structures in "UI Frames.xml". Remember that opening screenshot?
 
@@ -349,7 +359,15 @@ Wanna see the XML that makes up the "unit frames"? Well, too bad.
 </Template>
 ```
 
-The template system becomes rather mandatory.
+With structures this large repeated all over the place, the template system becomes rather mandatory. Editing colors, fonts, outlines, drop shadows, and what else becomes a few key presses in a file and then a `reloadui()` in the in-game console. 
+
+### I Learned A Lot
+
+It is this rather rapid pace of editing that accelerated Twin Gods' look from that desaturated rust color to the bright, much more dynamic-looking UI it has now. (Along with, perhaps, help from other people commenting on the UI as I went along.)
+
+On top of that, I realized the power I had under the hood with templates, which I wound up using to create controls like tabs, buttons, labels, and fields, which in turn brought a more consistent look across the UI.
+
+Would Twin Gods' UI have looked like this if I had put in actual distinct controls from the outset instead of using templates to do it? To be fair, it's hard to say for sure. I don't think so, however. In some ways, the current look of the UI is me gaining depth of knowledge of my own tools, realizing what it could *really* do if I pushed it just a little bit.
 
 ## In Conclusione
 
