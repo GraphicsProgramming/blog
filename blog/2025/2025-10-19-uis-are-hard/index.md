@@ -5,7 +5,7 @@ description: 'An explanation of the custom UI in the Twin Gods engine'
 date: '2025-10-19'
 authors: ['domiran']
 tags: ['ui', 'opengl', 'article']
-image: 'ui-overview.png'
+image: 'ui-overview.webp'
 ---
 If you're like me, you've thought to yourself at least once: "Hey, making a UI can't be that hard! I wouldn't need to add any more headers or libraries to my project!" Because not having to deal with C++ is a good reason to write your own UI.
 
@@ -29,7 +29,7 @@ In this article, we'll cover:
 
 Other topics, such as data binding (don't be fooled by this only being two words, this is *type-checked* on game startup), callbacks, the click feedback system, the dialog transition system, text rendering (which, [hates you](https://faultlore.com/blah/text-hates-you/)), the UI loader (a rather vital part), the lame UI editor, the script wait system, the UI flow and layout system, how the UI is rendered, the "vis stack" (again, don't be fooled by it only being two words), mouse vs gamepad navigation, the UI event system, lists, the placeholder text system, and how the data is actually organized engine-side will be left to future articles.
 
-![Menu Overview](ui-overview.png)
+![Menu Overview](ui-overview.webp)
 
 ## But First
 
@@ -41,7 +41,7 @@ A few names. Twin Gods' engine is dubbed **Hauntlet**. The UI library has no nam
 
 Let's see how it all started.
 
-![How It Began](how-it-started.png)
+![How It Began](how-it-started.webp)
 
 Rough, eh? That screenshot is dated 2011. Nevermind the hilarious artwork, how did TGUI go from a fever dream to something someone might not actually downvote on Steam out of sheer anger?
 
@@ -71,13 +71,13 @@ Here's a simple example UIFrame.
 
 That XML produces this UI.
 
-![Simple Example](simple-example.png)
+![Simple Example](simple-example.webp)
 
 Hideous! Much of the XML should be self-explanatory but let's cover a few less-obvious points.
 
 * `BackColor` is applied on top of any materials. If it was "Red", the resulting shader color is then multiplied by red.
 
-* The astute reader may note the `;` hanging out in front of the `Background` attribute. For better or worse TGUI's XML reflects its history ([\*3](#note-id-3)). The semicolon denotes a material file. `Background="plain texture.png"` would specify a texture directly. We'll see a material soon.
+* The astute reader may note the `;` hanging out in front of the `Background` attribute. For better or worse TGUI's XML reflects its history ([\*3](#note-id-3)). The semicolon denotes a material file. `Background="plain texture.webp"` would specify a texture directly. We'll see a material soon.
 
 * `Anchor` is a note to the layout and flow code. It determines the initial position of the dialog. "Center" simply means it is laid out in the middle of its parent. Other options are "TopLeft", "Top", "TopRight", etc. 
 
@@ -102,7 +102,7 @@ Note that each `UIFrame` in the XML file *can* be stored in a variable for use i
 Here's the definition of the material used above ([\*5](#note-id-5)):
 
 ```xml title="materials\unit speech frame.mat"
-<material texture="textures\ui\unit speech.sliced.png" shader="shaders\ui\dialog9SliceGradient4.shader">
+<material texture="textures\ui\unit speech.sliced.webp" shader="shaders\ui\dialog9SliceGradient4.shader">
     <uniform name="colorTopLeft" type="color" value="DialogGradientVeryLight" />
     <uniform name="colorTopRight" type="color" value="DialogGradientVeryLight" />
     <uniform name="colorBottomLeft" type="color" value="MediumDarkBlue" />
@@ -144,7 +144,7 @@ It can even define the prefix folder used to determine where to pull fonts from 
 
 You'll also notice a `FontStyle` attribute, which makes it look like each dialog only supports a single font style.
 
-![I Assure You](assure-you.png)
+![I Assure You](assure-you.webp)
 
 Text styling will be covered in a later article.
 
@@ -172,7 +172,7 @@ One of the more interesting features, I think, is TGUI's template capability. Th
 
 The above XML produces this:
 
-![Templated Fields](template-stuff.png)
+![Templated Fields](template-stuff.webp)
 
 I said earlier the engine treats the UI tree as essentially read-only, right? So what happened? The template system happened, that's what.
 
@@ -235,7 +235,7 @@ Getting back to our example, it looks weird. The label is not a fixed size. We c
 
 Yep, templates can have templates. I heard you like templates so I put a template in your template. The result:
 
-![Template Fields 2](template-stuff-2.png)
+![Template Fields 2](template-stuff-2.webp)
 
 But we can do a little better, still. Let's remove the width, letting the flow system do all the work. We'll set a margin, add a texture, and fixed widths only where necessary.
 
@@ -257,11 +257,11 @@ But we can do a little better, still. Let's remove the width, letting the flow s
 </UIFrame>
 ```
 
-![Template Fields 3](template-stuff-3.png)
+![Template Fields 3](template-stuff-3.webp)
 
 There. It won't win any awards but it's a fine example of what TGUI's template system can do. It also does illustrate one of TGUI's limitations: the flow and layout code has no way to set a "minimum expanding" width. If the "label" text expanded past the width of "test-combo", it would simply extend past the frame and look weird.
 
-![Layout Whoops](layout-whoops.png)
+![Layout Whoops](layout-whoops.webp)
 
 We'll save the problem of creating a UI/text flow/layout system for another day. Let's finish up by just seeing how this all helped shape TGUI's look.
 
@@ -269,7 +269,7 @@ We'll save the problem of creating a UI/text flow/layout system for another day.
 
 Where we've been and where we are.
 
-![TGUI Mark 2](ui-mark-2.png) ![TGUI Mark 3](ui-mark-3.png)
+![TGUI Mark 2](ui-mark-2.webp) ![TGUI Mark 3](ui-mark-3.webp)
 
 The first picture is "version 2" of the Twin Gods UI. The second picture is obviously the current iteration. Apart from the difference in navigation, note the *drastic* difference in coloration.
 
@@ -281,7 +281,7 @@ This may be a no-brainer to any of you experienced in UI design and you may be w
 
 For a long time, the template system was just a way to avoid simply copy/pasting large structures in "UI Frames.xml". Remember that opening screenshot?
 
-![Menu Overview](ui-overview.png)
+![Menu Overview](ui-overview.webp)
 
 Wanna see the XML that makes up the "unit frames"? Well, too bad.
 
