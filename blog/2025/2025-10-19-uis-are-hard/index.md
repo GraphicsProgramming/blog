@@ -31,6 +31,12 @@ Other topics, such as data binding (don't be fooled by this only being two words
 
 ![Menu Overview](ui-overview.png)
 
+## But First
+
+I will be blunt: I want to neither encourage nor discourage you from using the general paradigm used by Twin Gods' UI. This is only one man's journey from an empty code file to a fully-featured UI that could actually be used in a professional video game.
+
+A few names. Twin Gods' engine is dubbed **Hauntlet**. The UI library has no name so we'll refer to it as "Twin Gods UI", or "TGUI" (because I think HUI sounds silly). Like all the rest of Hauntlet, it is in C++ and is rendered with OpenGL 4.6.
+
 ## Let's Begin
 
 Let's see how it all started.
@@ -43,17 +49,13 @@ The basics of TGUI have not changed since 2011 ([\*1](#note-id-1)). The main wor
 
 If I remember right, the original version contained only the very basics: support for a background image, on-click event, text, child elements, and the layout type (row, column, pure x/y). It also used to support drag and drop. Implement *that* at your own peril.
 
-It's all gotten more complicated since and, you'll be happy to know, the concept of controls has emerged, though not through the C++ side of things. We'll get to that in later articles. This means that every UI element contains all the attributes used to make up everything seen in the UI. `DialogItem` is reported as being 1,480 bytes in release mode. It's quite large.
+It's all gotten more complicated since then. Additionally, the concept of controls *did* emerge, though not through the C++ side of things. We'll get to that a little later.
+
+A consequence of this setup is that every UI element contains all the attributes used to make up everything seen in the UI. `DialogItem` is reported as being 1,480 bytes in release mode. It's quite large. This is one reason why `DialogItem`s are stored as a vector on its parent and not, say, a bunch of pointers. (We'll ignore the possible bikeshedding in this article. The data side of things changed quite a few times.)
 
 And, okay, I lied. There is one specific control: lists. For a later article.
 
 But of course, the definition of a TGUI `UIFrame` is just as important as the engine code behind it. TGUI's XML might as well be its own language and is one of its primary strengths, I think.
-
-## But First
-
-I will be blunt: I will neither encourage nor discourage you from using the general paradigm used by Twin Gods' UI. This is only one man's journey from an empty code file to a fully-featured UI that could actually be used in a professional video game.
-
-A few names. Twin Gods' engine is dubbed **Hauntlet**. The UI library has no name so we'll refer to it as "Twin Gods UI", or "TGUI" (because I think HUI sounds silly). Like all the rest of Hauntlet, it is in C++ and is rendered with OpenGL 4.6.
 
 ## Defining a UI
 
@@ -109,7 +111,7 @@ Here's the definition of the material used above ([\*5](#note-id-5)):
 </material>
 ```
 
-I won't show the shader but it is a basic "9-slice" shader with suport for coloring at the 4 corners and a border color, hence the 5 uniforms.
+I won't show the shader but it is a basic ["9-slice"](https://en.wikipedia.org/wiki/9-slice_scaling) shader with support for coloring at the 4 corners and a border color, hence the 5 uniforms.
 
 **It cannot be overstated how important materials were to the look of Twin Gods' UI, and the ease of development.** The screenshot shown in the top of the article represents the third major "rewrite" of the UI.
 
@@ -117,7 +119,7 @@ More on how this helped a little later.
 
 ## UI Styles
 
-You'll notice in the material definition that there are `color` attributes not set to any colors you know. `value` can be set to a hex color starting with a "#", or it can be set to a named color defined in the "UI Styles" file. "UI Styles.xml" is a lovely companion piece to "UI Frames.xml".
+Note the value of `value` in the material. It can be set to either a hex color (starting with a "#") or a *named* color defined in the "UI Styles" file. "UI Styles.xml" is a lovely companion piece to "UI Frames.xml".
 
 It can define colors:
 
