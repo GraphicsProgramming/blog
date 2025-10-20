@@ -149,7 +149,7 @@ const config: Config = {
           items: [
             {
               label: "Blog",
-              to: "https://graphics-programming.org/",
+              to: "https://graphics-programming.org/blog",
             },
             {
               label: "GitHub",
