@@ -7,9 +7,17 @@ authors: ['domiran']
 tags: ['ui', 'opengl', 'article']
 image: 'ui-overview.png'
 ---
-If you're like me, you've thought to yourself at least once: "Hey, making a UI can't be that hard! I wouldn't need to add any more headers or libraries to my project!" Because not having to deal with C++ is a good reason to write your own UI. Well, I did it. What came out the other end is a confusing mixture of knowledge, a lot of head-bashing, years of code that went sideways more than once, and a working UI for a functioning game. Let's see how it works, shall we?
+If you're like me, you've thought to yourself at least once: "Hey, making a UI can't be that hard! I wouldn't need to add any more headers or libraries to my project!" Because not having to deal with C++ is a good reason to write your own UI.
+
+Well, I did it for my game, Twin Gods. I can't remember why anymore beyond "hey, that sounds like fun". Am I glad I have it? Yes! You very much learn a lot about how a UI works. Would I do it again? Probably not.
+
+What came out the other end is a confusing mixture of knowledge, a lot of head-bashing, years of code that went sideways more than once, and a working UI for a functioning game. Let's see how it works, shall we?
 
 This is not an article to sell you on using my UI ([\*0](#note-id-0)). This is only intended as a showcase of how it works, *why* it works that way, what went into making it, and how difficult it is to make a UI from scratch. And I cannot understate how difficult it is -- *and how much time it takes* -- to make a UI from scratch.
+
+<!-- truncate -->
+
+## There's a Lot to Cover
 
 In this article, we'll cover:
 
@@ -19,17 +27,9 @@ In this article, we'll cover:
 4. The template system
 5. How this all helped shape the look of the game's UI
 
-<!-- truncate -->
-
 Other topics, such as data binding (don't be fooled by this only being two words, this is *type-checked* on game startup), callbacks, the click feedback system, the dialog transition system, text rendering (which, [hates you](https://faultlore.com/blah/text-hates-you/)), the UI loader (a rather vital part), the lame UI editor, the script wait system, the UI flow and layout system, how the UI is rendered, the "vis stack" (again, don't be fooled by it only being two words), dialog navigation (yep), the UI event system, lists, the placeholder text system, and how the data is actually organized engine-side will be left to future articles.
 
 ![Menu Overview](ui-overview.png)
-
-## But First
-
-I will be blunt: I will neither encourage nor discourage you from using the general paradigm used by Twin Gods' UI. This is only one man's journey from an empty code file to a fully-featured UI that could actually be used in a professional video game. And let me tell you, I'm as surprised as you are.
-
-A few names. Twin Gods' engine is dubbed **Hauntlet**. The UI library has no name so we'll refer to it as "Twin Gods UI", or "TGUI" (because I think HUI sounds silly). Like all the rest of Hauntlet, it is in C++ and is rendered with OpenGL 4.6.
 
 ## Let's Begin
 
@@ -39,15 +39,23 @@ Let's see how it all started.
 
 Rough, eh? That screenshot is dated 2011. Nevermind the hilarious artwork, how did TGUI go from a fever dream to something someone might not actually downvote on Steam out of sheer anger?
 
-The basics of TGUI have not changed since 2011 ([\*1](#note-id-1)). The main workhorse is a class called `DialogItem`. TGUI has no "controls" as you'd expect of a UI library, which is a relic from its early days as a "I didn't know what I was doing" sort of thing ([\*2](#note-id-2)). Every UI element is a `DialogItem`. `DialogItem` contains a `std::vector<DialogItem>` member. If I remember right, the original version contained only the very basics: support for a background image, on-click event, text, child elements, and the layout type (row, column, pure x/y). It also used to support drag and drop. Implement *that* at your own peril.
+The basics of TGUI have not changed since 2011 ([\*1](#note-id-1)). The main workhorse is a class called `DialogItem`. TGUI has no "controls" as you'd expect of a UI library, which is a relic from its early days as a "I didn't know what I was doing" sort of thing ([\*2](#note-id-2)). Every UI element is a `DialogItem`. `DialogItem` contains a `std::vector<DialogItem>` member.
 
-It's gotten more complicated since and, you'll be happy to know, the concept of controls has emerged, though not through the C++ side of things. We'll get to that in later articles. This means that every UI element contains all the attributes used to make up everything seen in the UI. `DialogItem` is reported as being 1,480 bytes in release mode. It's quite large.
+If I remember right, the original version contained only the very basics: support for a background image, on-click event, text, child elements, and the layout type (row, column, pure x/y). It also used to support drag and drop. Implement *that* at your own peril.
+
+It's all gotten more complicated since and, you'll be happy to know, the concept of controls has emerged, though not through the C++ side of things. We'll get to that in later articles. This means that every UI element contains all the attributes used to make up everything seen in the UI. `DialogItem` is reported as being 1,480 bytes in release mode. It's quite large.
+
+And, okay, I lied. There is one specific control: lists. For a later article.
 
 But of course, the definition of a TGUI `UIFrame` is just as important as the engine code behind it. TGUI's XML might as well be its own language and is one of its primary strengths, I think.
 
-Ok, I lied. There is one specific control: lists. For a later article.
+## But First
 
-## Eww, XML!
+I will be blunt: I will neither encourage nor discourage you from using the general paradigm used by Twin Gods' UI. This is only one man's journey from an empty code file to a fully-featured UI that could actually be used in a professional video game.
+
+A few names. Twin Gods' engine is dubbed **Hauntlet**. The UI library has no name so we'll refer to it as "Twin Gods UI", or "TGUI" (because I think HUI sounds silly). Like all the rest of Hauntlet, it is in C++ and is rendered with OpenGL 4.6.
+
+## Defining a UI
 
 All screenshots in this article were captured from the running game.
 
@@ -55,7 +63,7 @@ Here's a simple example UIFrame.
 
 ```xml
 <UIFrame Name="simple-example" Size="250,50" Anchor="Center" BackColor="White" Background=";materials\unit speech frame.mat">
-    <Node Name="downbox-1" BackColor="Blue" Text="Hello!" FontStyle="Paragraph-Normal16" />
+    <Node Name="downbox-1" Text="Hello!" FontStyle="Paragraph-Normal16" />
 </UIFrame>
 ```
 
@@ -63,11 +71,11 @@ That XML produces this UI.
 
 ![Simple Example](simple-example.png)
 
-Much of the XML should be self-explanatory but let's cover a few less-obvious points.
+Hideous! Much of the XML should be self-explanatory but let's cover a few less-obvious points.
 
-* `BackColor` is applied on top of any materials.
+* `BackColor` is applied on top of any materials. If it was "Red", the resulting shader color is then multiplied by red.
 
-* The astute reader may note the `;` hanging out in front of the `Background` attribute. For better or worse TGUI's XML reflects its history, a problem you run into when your code is over a decade old ([\*3](#note-id-3)). The semicolon denotes a material file. `Background="plain texture.png"` would specify a texture directly. A "material" is simply a texture and shader with values for uniforms. Materials came much later. Very recently, in fact.
+* The astute reader may note the `;` hanging out in front of the `Background` attribute. For better or worse TGUI's XML reflects its history ([\*3](#note-id-3)). The semicolon denotes a material file. `Background="plain texture.png"` would specify a texture directly. We'll see a material soon.
 
 * `Anchor` is a note to the layout and flow code. It determines the initial position of the dialog. "Center" simply means it is laid out in the middle of its parent. Other options are "TopLeft", "Top", "TopRight", etc. 
 
@@ -343,6 +351,17 @@ Wanna see the XML that makes up the "unit frames"? Well, too bad.
 
 The template system becomes rather mandatory.
 
+## In Conclusione
+
+If there's enough interest, there can be future articles. It's not as if there's a shortage of topics to cover. (See: intro.)
+
+The 
+
+P.S.:
+It's not a typo, it's Latin. Get cultured.
+
+
+
 ## Notes
 
 #### (0) {#note-id-0}
@@ -355,7 +374,7 @@ Hauntlet has not been in active development since 2011. For a long time, it was 
 Arguably, still don't. 
 
 #### (3) {#note-id-3}
-Somehow, TGUI has survived every massive refactor in Hauntlet, and not for lack of trying. There is a *large* comment inside the `DialogItem` class about introducing official UI element control types. (At this point, it will never get done.)
+A problem you run into when your code is over a decade old. Somehow, TGUI has survived every massive refactor in Hauntlet, and not for lack of trying. There is a *large* comment inside the `DialogItem` class about introducing official UI element control types. (At this point, it will never get done.)
 
 #### (4) {#note-id-4}
 Fun fact: the original version of TGUI's definition file could be lightly edited to view in a web browser. This was how the initial UI was created.
