@@ -345,20 +345,20 @@ The template system becomes rather mandatory.
 
 ## Notes
 
-### (0) {#note-id-0}
+#### (0) {#note-id-0}
 Though I may be trying to sell you on buying a copy of Twin Gods.
 
-### (1) {#note-id-1}
+#### (1) {#note-id-1}
 Hauntlet has not been in active development since 2011. For a long time, it was an on-again-off-again project.
 
-### (2) {#note-id-2}
-And I arguably still don't. 
+#### (2) {#note-id-2}
+Arguably, still don't. 
 
-### (3) {#note-id-3}
+#### (3) {#note-id-3}
 Somehow, TGUI has survived every massive refactor in Hauntlet, and not for lack of trying. There is a *large* comment inside the `DialogItem` class about introducing official UI element control types. (At this point, it will never get done.)
 
-### (4) {#note-id-4}
+#### (4) {#note-id-4}
 Fun fact: the original version of TGUI's definition file could be lightly edited to view in a web browser. This was how the initial UI was created.
 
-### (5) {#note-id-5}
+#### (5) {#note-id-5}
 Astute readers will note the difference in casing between the TGUI data and material data. You can always tell an older file format in Hauntlet because they use CamcelCase. Newer files use kebab-case.
