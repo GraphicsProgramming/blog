@@ -11,7 +11,7 @@ const config: Config = {
   favicon: "img/favicon.ico",
 
   // Set the production url of your site here
-  url: "https://graphicsprogramming.github.io/",
+  url: "https://graphics-programming.org/",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: "/",
@@ -149,7 +149,7 @@ const config: Config = {
           items: [
             {
               label: "Blog",
-              to: "https://graphics-programming.org/",
+              to: "https://graphics-programming.org/blog",
             },
             {
               label: "GitHub",
