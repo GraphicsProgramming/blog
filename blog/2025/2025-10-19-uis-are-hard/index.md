@@ -13,7 +13,7 @@ Well, I did it for my game, Twin Gods. I can't remember why anymore beyond "hey,
 
 What came out the other end is a confusing mixture of knowledge, a lot of head-bashing, years of code that went sideways more than once, and a working UI for a functioning game. Let's see how it works, shall we?
 
-This is not an article to sell you on using my UI ([\*0](#note-id-0)). This is only intended as a showcase of how it works, *why* it works that way, what went into making it, and how difficult it is to make a UI from scratch. And I cannot understate how difficult it is -- *and how much time it takes* -- to make a UI from scratch.
+This is not an article to sell you on using my UI ([\*0](#note-id-0)). This is only intended as a showcase of how it works, *why* it works that way, what went into making it, and how difficult it is to make a UI from scratch. And I cannot overstate how difficult it is -- *and how much time it takes* -- to make a UI from scratch.
 
 <!-- truncate -->
 
@@ -27,15 +27,17 @@ In this article, we'll cover:
 4. The template system
 5. How this all helped shape the look of the game's UI
 
-Other topics, such as data binding (don't be fooled by this only being two words, this is *type-checked* on game startup), callbacks, the click feedback system, the dialog transition system, text rendering (which, [hates you](https://faultlore.com/blah/text-hates-you/)), the UI loader (a rather vital part), the lame UI editor, the script wait system, the UI flow and layout system, how the UI is rendered, the "vis stack" (again, don't be fooled by it only being two words), mouse vs gamepad navigation, the UI event system, lists, the placeholder text system, and how the data is actually organized engine-side will be left to future articles.
+Other topics, such as data binding (don't be fooled by this only being two words, this is *type-checked* on game startup), callbacks, the click feedback system, the dialog transition system, text rendering (which, [hates you](https://faultlore.com/blah/text-hates-you/)), the UI loader (a rather vital part), building a UI editor, the script wait system, the UI flow and layout system, how the UI is rendered, the "vis stack" (again, don't be fooled by it only being two words), mouse vs gamepad navigation, the UI event system, lists, the placeholder text system, and how the data is actually organized engine-side will be left to future articles.
 
 ![Menu Overview](ui-overview.webp)
 
 ## But First
 
-I will be blunt: I want to neither encourage nor discourage you from using the general paradigm used by Twin Gods' UI. This is only one man's journey from an empty code file to a fully-featured UI that could actually be used in a professional video game.
+I will be blunt: I want to neither encourage nor discourage you from using the general paradigm used by Twin Gods' UI. This is only one man's journey from an empty code file to a fully-featured UI used in a video game.
 
 A few names. Twin Gods' engine is dubbed **Hauntlet**. The UI library has no name so we'll refer to it as "Twin Gods UI", or "TGUI" (because I think HUI sounds silly). Like all the rest of Hauntlet, it is in C++ and is rendered with OpenGL 4.6.
+
+Due to the class names on the engine side, I tend to refer to any "UI element" as a "dialog", which corresponds to the `DialogItem` class we'll see later.
 
 ## Let's Begin
 
@@ -47,7 +49,7 @@ Rough, eh? That screenshot is dated 2011. Nevermind the hilarious artwork, how d
 
 The basics of TGUI have not changed since 2011 ([\*1](#note-id-1)). The main workhorse is a class called `DialogItem`. TGUI has no "controls" as you'd expect of a UI library, which is a relic from its early days as a "I didn't know what I was doing" sort of thing ([\*2](#note-id-2)). Every UI element is a `DialogItem`. `DialogItem` contains a `std::vector<DialogItem>` member.
 
-If I remember right, the original version contained only the very basics: support for a background image, on-click event, text, child elements, and the layout type (row, column, pure x/y). It also used to support drag and drop. Implement *that* at your own peril.
+If I remember right, the original version contained only the very basics: support for a background image, on-click event, text, child elements, and the layout type (row, column, pure x/y). It also used to support drag and drop. (Implement *that* at your own peril.)
 
 It's all gotten more complicated since then. Additionally, the concept of controls *did* emerge, though not through the C++ side of things. We'll get to that a little later.
 
@@ -75,11 +77,17 @@ That XML produces this UI.
 
 Hideous! Much of the XML should be self-explanatory but let's cover a few less-obvious points.
 
+* The top-level node must be a `UIFrame`. The valid child nodes we'll see here: `AcrossBox`, `DownBox`, and `Node`.
+
+* `DownBox` and `AcrossBox` act like layout containers in other UI systems. `DownBox` "flows" (positions) all child dialogs as rows and `AcrossBox` flows all child dialogs as columns. `Node` is expected to have no children, applies no flow, and is basically undefined behavior if you try it. (`Node` is mostly symbolic; you can absolutely have `DownBox` as a leaf.)
+
+* Because the `DialogItem` class is used for everything, every XML node has every property with some exceptions based on context. For example, the top-level `UIFrame` node is the only one that can have the `Transition-Type` attribute.
+
 * `BackColor` is applied on top of any materials. If it was "Red", the resulting shader color is then multiplied by red.
 
 * The astute reader may note the `;` hanging out in front of the `Background` attribute. For better or worse TGUI's XML reflects its history ([\*3](#note-id-3)). The semicolon denotes a material file. `Background="plain texture.webp"` would specify a texture directly. We'll see a material soon.
 
-* `Anchor` is a note to the layout and flow code. It determines the initial position of the dialog. "Center" simply means it is laid out in the middle of its parent. Other options are "TopLeft", "Top", "TopRight", etc. 
+* `Anchor` is a note to the layout and flow code. It determines the initial position of the dialog. "Center" simply means it is laid out in the middle of its parent. Other options are "TopLeft", "Top", "TopRight", etc.
 
 * `Name` is how the frame is referred to in code and via any scripts (in Lua).
 
@@ -89,20 +97,28 @@ From the beginning, TGUI used XML ([\*4](#note-id-4)). Much has been added but t
 
 An aside on data.
 
-Due to the class names on the engine side, I tend to refer to any "UI element" as a "dialog", which corresponds to the `DialogItem` class. The above XML produces 2 dialogs (or `DialogItem`s): the top-level "UIFrame" node and the "Node" node. The entire `DialogItem` tree is then stuffed into a `UIFrame` object and stored in a list: `std::vector<UIFrame> UIFrames`. I may also refer to a "UI frame" more casually in-game (say, to non-technical players) as a "window" or "screen".
+Storage of the entire UI boils down to a single `vector`. The above XML produces 2 dialogs (or `DialogItem`s): the top-level "UIFrame" node and the "Node" node. The entire `DialogItem` tree is then stuffed into its own `UIFrame` object. That `UIFrame` is stored in the master frames list: `std::vector<UIFrame> UIFrames`. This `UIFrames` (note the "s") list has the same lifetime as the running game.
 
-It's important to note that a `UIFrame` is single-instance. Once loaded, the engine does not duplicate or create a new instance of any of these objects when they are displayed in-game. The tree is never touched after load. The whole tree of a `UIFrame` is displayed at once, barring any dialogs that are set invisible. This `UIFrames` (note the "s") list has the same lifetime as the running game. At a basic level, this `UIFrame` object is a fancy container for a single UI tree with additional properties left for future articles.
+At a basic level, this `UIFrame` object is a fancy container for a single UI tree with additional properties left for future articles. One could more casually refer to a "UI frame" as a "window", "screen", "prompt", etc.
+
+The whole tree inside a `UIFrame` is displayed at once, barring any `DialogItem`s that are set invisible.
+
+It's important to note that a `UIFrame` is single-instance. Once loaded, the engine does not duplicate or create a new instance of any of these objects when they are displayed in-game. The tree is never touched after load.
 
 Obviously, even though the *tree* is essentially read-only, the actual `DialogItem`s are written to quite frequently, especially during data binding.
 
-Note that each `UIFrame` in the XML file *can* be stored in a variable for use in code (data binding, showing windows to the player, etc.). All `UIFrame`s *do* exist in the UIFrames *list* (or they could not be found otherwise) but many important `UIFrame`s also have a hard variable in the engine for direct reference in code (eg, `UIFrames().simple_example.show()`).
+While all `UIFrame`s are stored in the aforementioned `UIFrames` list, a `UIFrame` can optionally be stored in a variable, referred to as a "named frame". After parsing `UI Frames.xml` on startup, the engine looks for all named frames specified in code (eg, `UIFrame SimpleExample("simple_example")`) and shows an error for any that it can't find.
+
+Many important `UIFrame`s are "named frames" for direct reference in code (eg, `UIFrames().SimpleExample.show()`). This is commonly used for data binding.
+
+Hauntlet's Lua scripting system can access and write to `DialogItem`s. This means a script can maintain and update its own UI, though it cannot create new `DialogItem`s.
 
 ## Materials
 
 Here's the definition of the material used above ([\*5](#note-id-5)):
 
 ```xml title="materials\unit speech frame.mat"
-<material texture="textures\ui\unit speech.sliced.webp" shader="shaders\ui\dialog9SliceGradient4.shader">
+<material texture="textures\ui\unit speech.sliced.png" shader="shaders\ui\dialog9SliceGradient4.shader">
     <uniform name="colorTopLeft" type="color" value="DialogGradientVeryLight" />
     <uniform name="colorTopRight" type="color" value="DialogGradientVeryLight" />
     <uniform name="colorBottomLeft" type="color" value="MediumDarkBlue" />
@@ -113,13 +129,13 @@ Here's the definition of the material used above ([\*5](#note-id-5)):
 
 I won't show the shader but it is a basic ["9-slice"](https://en.wikipedia.org/wiki/9-slice_scaling) shader with support for coloring at the 4 corners and a border color, hence the 5 uniforms.
 
-**It cannot be overstated how important materials were to the look of Twin Gods' UI, and the ease of development.** The screenshot shown in the top of the article represents the third major "rewrite" of the UI.
+**It cannot be overstated how important materials were to the look and ease of development of Twin Gods' UI.** The screenshot shown in the top of the article represents the third major "rewrite" of the UI.
 
-More on how this helped a little later.
+More on how this helped later.
 
 ## UI Styles
 
-Note the value of `value` in the material. It can be set to either a hex color (starting with a "#") or a *named* color defined in the "UI Styles" file. "UI Styles.xml" is a lovely companion piece to "UI Frames.xml".
+Note the value of `value` in the material. It can be set to either a hex color (starting with a "#") or a *named* color defined in the "UI Styles" file. "UI Styles.xml" is a companion piece to "UI Frames.xml".
 
 It can define colors:
 
@@ -136,11 +152,13 @@ It can also define fonts.
 <FontStyle Name="UnitBlock" Font="tall\16" Color="White" Outline="MediumDarkBlue" DropShadow="1,1" />
 ```
 
-It can even define the prefix folder used to determine where to pull fonts from because I'm lazy and haven't updated the `Font` attribute to work like literally every other in-game asset after the last `FileSystem` refactor.
+It can even define the prefix folder from which all pull fonts ([\*6](#note-id-6)).
 
 ```xml
 <FontStyles FontPrefix="fonts\nope">
 ```
+
+This means that when a `Font` specifies "short\16-outline", the full folder is "fonts\nope\short\16-outline".
 
 You'll also notice a `FontStyle` attribute, which makes it look like each dialog only supports a single font style.
 
@@ -148,13 +166,13 @@ You'll also notice a `FontStyle` attribute, which makes it look like each dialog
 
 Text styling will be covered in a later article.
 
-In any case, the "UI Styles" file is a vague CSS-like system, and by CSS I mean I can specify color, font face, font size, shader, outline, and a few other things and that's basically it.
+In any case, the "UI Styles" file is a vague CSS-like system. I can specify color, font face, font size, shader, outline, and a few other things but that's it. It does not support things like animation. That is left to shaders.
 
 I should note before anyone gets mad that if `DropShadow` appears in a `FontStyle`, the `Outline` color becomes the drop shadow color. 13 years of *cruft*!
 
 ## Templates, In My UI?
 
-One of the more interesting features, I think, is TGUI's template capability. This is why TGUI will probably never get official support for controls. Brace yourself, the XML only gets uglier from here.
+One of the more interesting features, I think, is TGUI's template capability. This is why TGUI will probably never get official support for controls.
 
 ```xml
 <Template Name="test-field" BackColor="White">
@@ -174,13 +192,11 @@ The above XML produces this:
 
 ![Templated Fields](template-stuff.webp)
 
-I said earlier the engine treats the UI tree as essentially read-only, right? So what happened? The template system happened, that's what.
-
-Before that, quickly, `DownBox` flows all child dialogs as rows and `AcrossBox` flows all child dialogs as columns. `Node` is expected to have no children, applies no flow, and is basically undefined behavior if you try it. (`Node` is mostly symbolic; you can absolutely have `DownBox` as a leaf.)
+I said earlier the engine treats the UI tree as essentially read-only, right? So what happened? The template system happened.
 
 ## How Templates Expand
 
-When the UI loader encounters a `Template` node, it is put aside into a separate "templates" list, noting the name, and moves on to the next top-level node. When it encounters an XML node of the name format `ValidNodeType:TemplateName`, the template system kicks in, and it's rather simple (in theory).
+When the UI loader encounters a `Template` node, it is put aside into a separate "templates" list, noting the name, and moves on to the next top-level node. When it encounters an XML node of the name format `ValidNodeType:TemplateName`, the template system gets to work.
 
 The previously-set-aside node now acts like it was copied and pasted in-place.
 
@@ -190,7 +206,7 @@ This XML:
 <AcrossBox:test-field label:Text="Yaw" value:Text="No degrees." BackColor="Red" />
 ```
 
-Is expanded to:
+Expands to:
 
 ```xml
 <AcrossBox Name="test-field" BackColor="Red">
@@ -209,13 +225,15 @@ On the second `AcrossBox`, the template's original `BackColor="White"` stays bec
 
 ### Template Attribute Expansion Assignment
 
-What about `label:Text` and `value:Text`? The syntax may be cursed but I could not live without this feature. It searches down the tree (depth only) until it finds a dialog with the given name and then sets the given attribute.
+What about `label:Text` and `value:Text`? The syntax may be cursed but I could not live without this feature. It searches down the tree, depth only, until it finds a dialog with the given name and then sets the given attribute. Only the first one found is acted upon and the rest are ignored. There is no way to access the duplicates and, frankly, it hasn't ever come up as a problem.
 
-This is part of the "grand success" of how templates work. Data binding abuses this whole-heartedly and quite literally makes some features possible.
+### Data Binding and UI Controls
+
+This "attribute expansion" part of the success of how templates work. Data binding abuses this whole-heartedly and quite literally makes some features possible. You can very much create distinct controls with templates as we'll soon see.
 
 ### Improve the Look With Templates
 
-Getting back to our example, it looks weird. The label is not a fixed size. We can make this a little better without putting a size everywhere  -- since that is, after all, the entire point of TGUI's templates.
+Getting back to our example, let's add some structure to it. The label is not a fixed size. We can make this a little better without putting a size everywhere  -- since that is, after all, the entire point of TGUI's templates.
 
 ```xml
 <Template Name="test-label" Width="48" FontStyle="Short-Normal16" />
@@ -233,11 +251,13 @@ Getting back to our example, it looks weird. The label is not a fixed size. We c
 </UIFrame>
 ```
 
-Yep, templates can have templates. I heard you like templates so I put a template in your template. The result:
+Yep, templates can have templates. ~~I heard you like templates so I put a template in your template.~~
+
+The result:
 
 ![Template Fields 2](template-stuff-2.webp)
 
-But we can do a little better, still. Let's remove the width, letting the flow system do all the work. We'll set a margin, add a texture, and fixed widths only where necessary.
+We can do better. Let's remove the width, letting the flow system do all the work. We'll set a margin, add a texture, and fixed widths only where necessary.
 
 ```xml
 <Template Name="test-label" Width="48" FontStyle="Short-Normal16" />
@@ -263,6 +283,8 @@ There. It won't win any awards but it's a fine example of what TGUI's template s
 
 ![Layout Whoops](layout-whoops.webp)
 
+This has caused a few problems, where using a template a certain way would have been nice, but the layout and flow code is incapable of such a feat at present. In the end, I sometimes simply set sizes.
+
 We'll save the problem of creating a UI/text flow/layout system for another day. Let's finish up by just seeing how this all helped shape TGUI's look.
 
 ## Shaping the Look of Twin Gods' UI
@@ -273,17 +295,17 @@ Where we've been and where we are.
 
 The first picture is "version 2" of the Twin Gods UI. The second picture is obviously the current iteration. Apart from the difference in navigation, note the *drastic* difference in coloration.
 
-One of Hauntlet's hallmark features as a dev tool is its in-game console. All UI-related data can be hot-reloaded in-game. *It cannot be understated* how important *fast iteration* is to game development in general. Being able to edit a file and see the result in-game immediately is *fabulous*. Hauntlet has a UI editor but nothing beats real data *and* being able to navigate it.
+One of Hauntlet's hallmark features as a dev tool is its in-game console. All UI-related data can be hot-reloaded in-game. *It cannot be overstated* how important *fast iteration* is to game development in general. Being able to edit a file and see the result in-game immediately is *fabulous*. Hauntlet has a UI editor but nothing beats real data *and* being able to navigate it.
 
-Materials were kind of revolutionary in the look of TGUI primarily because now I can apply colors. You might not know this but I'm rather bad when it comes to graphic design. However, I *eventually* realized one of the many reasons the older UI designs looked rather drab is because they lacked any kind of *texture* (in addition to their lack of contrast). I don't just mean tgas or pngs or jpgs. I mean variance. There are gradients all over the current UI iteration. There are borders. There is contrast.
+Materials were kind of revolutionary in the look of TGUI primarily because it let me apply colors. I'm rather bad when it comes to graphic design. However, I *eventually* realized one of the many reasons the older UI designs looked rather drab is because they lacked any kind of *texture* (in addition to their lack of contrast). I don't just mean tgas or pngs or jpgs. I mean variance. There are gradients all over the current UI iteration. There are borders. There is contrast.
 
-This may be a no-brainer to any of you experienced in UI design and you may be wondering, if I could hot-reload *all* UI data, why was it not enough to hot-reload textures and that `BackColor` attribute? Because now I could play with color schemes at large and ***quickly*** change everything in the UI with just a few edits in "UI Styles.xml". Combine this with the gradient support, and now I could quickly make colorful, pleasing patterns to splash across the screen.
+This may be a no-brainer to any of you experienced in UI design and you may be wondering, if I could hot-reload *all* UI data, why was it not enough to hot-reload textures and that `BackColor` attribute? Because now I could play with color schemes at large and *quickly* change ***everything*** in the UI with just a few edits in "UI Styles.xml". Combine this with the gradient support -- somewhat revolutionary in the color scheme -- and now I could quickly make colorful, pleasing patterns to splash across the screen.
 
 For a long time, the template system was just a way to avoid simply copy/pasting large structures in "UI Frames.xml". Remember that opening screenshot?
 
 ![Menu Overview](ui-overview.webp)
 
-Wanna see the XML that makes up the "unit frames"? Well, too bad.
+Wanna see the XML that makes up the "unit frames"?
 
 ```xml
 <Template Name="GameMenu.UnitFrame">
@@ -360,20 +382,23 @@ Wanna see the XML that makes up the "unit frames"? Well, too bad.
   </FrameRow>
 </Template>
 ```
+(`FrameRow` and `FrameCell` are legacy variants of `AcrossBox` and `DownBox` and work *slightly* differently.)
 
-With structures this large repeated all over the place, the template system becomes rather mandatory. Editing colors, fonts, outlines, drop shadows, and what else becomes a few key presses in a file and then a `reloadui()` in the in-game console. 
+With structures this large repeated all over the place, the template system becomes rather mandatory. Editing colors, fonts, outlines, drop shadows, and what else becomes a few key presses in a file and then a `reloadui()` in the in-game console.
 
 ### I Learned A Lot
 
 It is this rather rapid pace of editing that accelerated Twin Gods' look from that desaturated rust color to the bright, much more dynamic-looking UI it has now. (Along with, perhaps, help from other people commenting on the UI as I went along.)
 
-On top of that, I realized the power I had under the hood with templates, which I wound up using to create controls like tabs, buttons, labels, and fields, which in turn brought a more consistent look across the UI.
+On top of that, I realized the power I had under the hood with templates, which I wound up using to create controls like tabs, buttons, labels, and fields, which in turn brought a more consistent look across the UI. Older versions of the the UI were more prone to minor differences because everything was defined multiple times.
 
 Would Twin Gods' UI have looked like this if I had put in actual distinct controls from the outset instead of using templates to do it? To be fair, it's hard to say for sure. I don't think so, however. In some ways, the current look of the UI is me gaining depth of knowledge of my own tools, realizing what it could *really* do if I pushed it just a little bit.
 
+Of course, this *is* the third version of the UI, which helped me just get better at UI design. But with better tools, it was leaps and bounds faster to make, and make look better.
+
 ## In Conclusione
 
-If there's enough interest, there can be future articles. It's not as if there's a shortage of topics to cover. (See: intro.) TGUI has many, many more features and lines and lines of code to cover. I would be happy to explain anything in more detail if requested.
+If there's enough interest, there can be future articles. TGUI has many, many more features and lines and lines of code to cover. I would be happy to explain anything in more detail if requested.
 
 In the mean time, Twin Gods is available on [Steam](https://store.steampowered.com/app/2495430/Twin_Gods/) as of this writing as a closed test. Ping me on the GP Discord or [Bluesky](https://bsky.app/profile/domiran.bsky.social) for a key.
 
@@ -399,3 +424,6 @@ Fun fact: the original version of TGUI's definition file could be lightly edited
 
 #### (5) {#note-id-5}
 Astute readers will note the difference in casing between the TGUI data and material data. You can always tell an older file format in Hauntlet because they use CamcelCase. Newer files use kebab-case.
+
+#### (6) {#note-id-6}
+Because I'm lazy and haven't updated the `Font` attribute to work like literally every other in-game asset after the last `FileSystem` refactor.
