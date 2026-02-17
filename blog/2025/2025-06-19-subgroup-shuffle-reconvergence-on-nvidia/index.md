@@ -364,3 +364,45 @@ Unlike AMD's RDNA ISAs where we can verify that the compiler is doing what it sh
 
 ----------------------------
 _This issue was observed happening inconsistently on Nvidia driver version 576.80, released 17th June 2025._
+
+## Update as of February 2026
+
+We've been informed that Nvidia noticed this blog post in June 2025 and issued a fix in July 2025.
+We then re-ran our benchmarks for subgroup operations on Nvidia driver version 591.86, released 27th January 2026, and can confirm there are improvements.
+
+### Benchmarks for workgroup size 256, items per invocation=1
+
+When pre-scanning only 1 item per invocation, inclusive scan performance is observed to be about equal between native and emulated.
+However, for exclusive scan, there is about a 1.17x speedup when using emulated, as opposed to native.
+
+#### Inclusive scan
+
+| Operation mode | SM throughput (%) | CS warp occupancy (%) | # registers | Dispatch time (ms) |
+| :------------: | :---------------: | :-------------------: | :---------: | :----------------: |
+| Native         | 69.5              | 97.9                  | 16            | 12.24             |
+| Emulated       | 37.9              | 97.7                  | 16            | 12.22             |
+
+#### Exclusive scan
+
+| Operation | SM throughput (%) | CS warp occupancy (%) | # registers | Dispatch time (ms) |
+| :------------: | :---------------: | :-------------------: | :---------: | :----------------: |
+| Native         | 60.2              | 97.8                  | 16            | 17.15             |
+| Emulated       | 36.9              | 98.1                  | 16            | 14.66             |
+
+### Benchmarks for workgroup size 256, items per invocation=4
+
+In contrast, with 4 items per invocation, we observe around 1.17x speedup when using emulated over native operations for both inclusive and exclusive scans.
+
+#### Inclusive scan
+
+| Operation mode | SM throughput (%) | CS warp occupancy (%) | # registers | Dispatch time (ms) |
+| :------------: | :---------------: | :-------------------: | :---------: | :----------------: |
+| Native         | 68.3              | 92.7                  | 18            | 4.45             |
+| Emulated       | 44.8              | 92.6                  | 17            | 3.78             |
+
+#### Exclusive scan
+
+| Operation | SM throughput (%) | CS warp occupancy (%) | # registers | Dispatch time (ms) |
+| :------------: | :---------------: | :-------------------: | :---------: | :----------------: |
+| Native         | 70.0              | 92.7                  | 18            | 4.45             |
+| Emulated       | 42.6              | 92.7                  | 16            | 3.78             |
