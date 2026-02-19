@@ -94,5 +94,17 @@
     "url": "https://sarahshandcraftedentertainment.com/",
     "displayName": "DethRaid",
     "description": "Homepage of Sarah's Handcrafted Entertainment"
+  },
+  {
+    "name": "gpvm",
+    "url": "https://gpvm.org/",
+    "displayName": "Graphics Programming Virtual Meetup",
+    "description": "weekly virtual meetup dedicated to graphics programming"
+  },
+  {
+    "name": "lesleylai",
+    "url": "https://lesleylai.info/",
+    "displayName": "Lesley Lai",
+    "description": "Personal website of Lesley Lai"
   }
 ]
