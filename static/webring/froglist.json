@@ -112,5 +112,11 @@
     "url": "https://www.froyok.fr/",
     "displayName": "Froyok (Léna Piquet)",
     "description": "Personal portfolio and Blog of Léna Piquet (Froyok) about realtime 3D rendering."
+  },
+  {
+    "name": "duskworks",
+    "url": "https://duskworks.net/",
+    "displayName": "Firefly in the Dusk🌙",
+    "description": "Personal site where I write about my game engine and other projects."
   }
 ]
