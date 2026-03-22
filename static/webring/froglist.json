@@ -21,7 +21,7 @@
     "name": "technicjelle",
     "url": "https://technicjelle.com/",
     "displayName": "TechnicJelle",
-    "description": "On this website you'll find info about me and my projects"
+    "description": "On this website you will find info about me and my projects"
   },
   {
     "name": "eduameli",
@@ -50,7 +50,7 @@
   {
     "name": "neonmoe",
     "url": "https://blog.neon.moe/",
-    "displayName": "Jens Pitkänen",
+    "displayName": "Jens Pitkanen",
     "description": "A blog about programming, the small web, and arcane personal computing"
   },
   {
@@ -81,7 +81,7 @@
     "name": "devsh",
     "url": "https://www.devsh.eu/",
     "displayName": "DevSH Graphics Programming",
-    "description": "Homepage of DevSH Graphics Programming: Computer Graphics, Computer Geometry & Vision and High Performance Computing Consultancy"
+    "description": "Homepage of DevSH Graphics Programming: Computer Graphics, Computer Geometry and Vision and High Performance Computing Consultancy"
   },
   {
     "name": "rafale25",
@@ -93,7 +93,7 @@
     "name": "sarah",
     "url": "https://sarahshandcraftedentertainment.com/",
     "displayName": "DethRaid",
-    "description": "Homepage of Sarah's Handcrafted Entertainment"
+    "description": "Homepage of Sarahs Handcrafted Entertainment"
   },
   {
     "name": "gpvm",
@@ -110,13 +110,19 @@
   {
     "name": "froyok",
     "url": "https://www.froyok.fr/",
-    "displayName": "Froyok (Léna Piquet)",
-    "description": "Personal portfolio and Blog of Léna Piquet (Froyok) about realtime 3D rendering."
+    "displayName": "Froyok (Lena Piquet)",
+    "description": "Personal portfolio and Blog of Lena Piquet (Froyok) about realtime 3D rendering."
   },
   {
     "name": "duskworks",
     "url": "https://duskworks.net/",
-    "displayName": "Firefly in the Dusk🌙",
+    "displayName": "Firefly in the Dusk",
     "description": "Personal site where I write about my game engine and other projects."
+  },
+  {
+    "name": "lumitree",
+    "url": "https://lumitree.art",
+    "displayName": "Studio Lumitree",
+    "description": "A collaborative art tree where visitors plant seeds that grow into interactive micro-worlds using generative art, shaders, mini-games, and visual poetry."
   }
 ]
