@@ -118,5 +118,11 @@
     "url": "https://duskworks.net/",
     "displayName": "Firefly in the Dusk🌙",
     "description": "Personal site where I write about my game engine and other projects."
+  },
+  {
+    "name": "lumitree",
+    "url": "https://lumitree.art/",
+    "displayName": "Lumitree",
+    "description": "A collaborative art project where visitors plant seeds that grow into interactive micro-worlds using generative graphics."
   }
 ]
