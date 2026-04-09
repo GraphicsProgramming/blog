@@ -70,3 +70,10 @@ evelyn:
   name: evelyn
   title: artisinal artificial intelligence
 
+jodie:
+  name: Jodie
+  title: The Tonemap Guy
+  url: https://jodie.website
+  image_url: https://jodie.website/logo.svg
+  socials:
+    github: MathGeniusJodie
