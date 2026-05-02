@@ -32,6 +32,14 @@ const config: Config = {
         languages: ["en"], // language codes
       },
     ],
+    [
+       '@1password/docusaurus-plugin-stored-data',
+      {
+        data: {
+          "Froyok Dev Blog": "https://www.froyok.fr/rss.xml",
+        }
+      }
+    ],
   ],
 
   // Even if you don't use internationalization, you can use this field to set

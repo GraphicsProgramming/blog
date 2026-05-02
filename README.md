@@ -5,6 +5,7 @@ The Graphics Programming Blog - A collection of technical articles, project post
 ## Things which work
 - You can create articles and project posts
 - LaTeX/KaTeX works
+- Blog feed aggregator
 
 ## Things which don't work yet
 - Search
@@ -54,7 +55,45 @@ The Graphics Programming Blog - A collection of technical articles, project post
   ```bash
   cd blog
   npm i
-  npm run start 
+  npm run start
   ```
 
 - `http://localhost:3000` should open automatically
+
+## Adding a blog feed
+
+This site can aggregate blogs from around the web! Here's how to get in on that:
+
+- fork the repo and clone your fork
+- add your blog's RSS feed to the `plugins.data` field of `docusaurus.config.ts`
+
+  ```typescript
+    plugins: [
+      [
+         '@1password/docusaurus-plugin-stored-data',
+        {
+          data: {
+            "Froyok Dev Blog": "https://www.froyok.fr/rss.xml",
+            your blog goes here! example:
+            "the flyswatter weekly": "https://example.com/flyswatter/rss.xml"
+          }
+        }
+      ],
+    ],
+  ```
+
+- add your blog to the `dataSources` field in `src/components/HomepageFeatures/index.tsx`:
+
+  ```typescript
+  const FeedItems = () => {
+  const dataSources = [
+    useStoredFeed("Froyok Dev Blog"),
+    useStoredFeed("the flywratter weekly"),
+  ];
+  ```
+
+- and that's it! make a pull request and your RSS feed will be automatically added to the blog feed!
+
+### WARNING
+
+The blog aggregator ONLY supports RSS. Atom feeds are unsupported
