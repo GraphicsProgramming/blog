@@ -17,3 +17,28 @@ faq:
   label: faq
   permalink: /faq
   description: Frequently Asked Questions
+
+showcase-2020:
+  label: showcase-2020
+  permalink: /showcase-2020
+  description: showcases from 2020
+
+showcase-2021:
+  label: showcase-2021
+  permalink: /showcase-2021
+  description: showcases from 2021
+
+showcase-2022:
+  label: showcase-2022
+  permalink: /showcase-2022
+  description: showcases from 2022
+
+showcase-2023:
+  label: showcase-2023
+  permalink: /showcase-2023
+  description: showcases from 2023
+
+showcase-2024:
+  label: showcase-2024
+  permalink: /showcase-2024
+  description: showcases from 2024
