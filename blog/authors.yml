@@ -85,3 +85,13 @@ yog:
   image_url: https://avatars.githubusercontent.com/u/100450992?v=4
   socials:
     github: yogwoggf
+
+saswatjk:
+  name: Saswat Jung Khadka
+  title: Graphics learner (Aspiring researcher)
+  url: https://saswatjk.github.io/personal-site/index.html
+  image_url: https://gitlab.com/uploads/-/system/user/avatar/34956158/avatar.png?
+  page: true
+  socials:
+    github: SaswatJK
+    site: https://saswatjk.github.io/personal-site/index.html

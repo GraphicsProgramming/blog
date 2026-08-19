@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dω → dA Visualizer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #fff;
+    color: #333;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    padding: 12px;
+  }
+  canvas {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+    touch-action: none;
+    display: block;
+    cursor: crosshair;
+  }
+  .controls {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ctrl-label { color: #333; white-space: nowrap; }
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 2px;
+    background: #000;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #000;
+    cursor: pointer;
+  }
+  .val { font-family: 'Courier New', monospace; font-weight: 600; color: #000; width: 32px; }
+  .metrics {
+    margin-top: 8px;
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: #555;
+    font-family: 'Courier New', monospace;
+  }
+  .insight {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #555;
+    line-height: 1.5;
+    border-left: 2px solid #000;
+    padding-left: 8px;
+  }
+  .hint { font-size: 11px; color: #999; margin-top: 6px; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="controls">
+  <span class="ctrl-label">θ</span>
+  <input type="range" id="thSl" min="0" max="85" value="40">
+  <span class="val" id="thLbl">40°</span>
+</div>
+<div class="metrics">
+  <span>cos θ = <strong id="mCos">—</strong></span>
+  <span>dA/dω = <strong id="mRatio">—</strong></span>
+</div>
+<p class="insight" id="insight"></p>
+<p class="hint">drag the ray or use the slider</p>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let thetaDeg = 40;
+const spreadDeg = 5;
+const toRad = d => d * Math.PI / 180;
+const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
+
+function dims() {
+  const W = cv.width, H = cv.height;
+  const surfY = H * 0.72;
+  const cx    = W * 0.5;
+  const R     = Math.min(W, H) * 0.24;
+  return { W, H, surfY, cx, R, sCx: cx, sCy: surfY };
+}
+
+function draw() {
+  const { W, H, surfY, cx, R, sCx, sCy } = dims();
+  ctx.clearRect(0, 0, W, H);
+
+  const tR = toRad(thetaDeg), sR = toRad(spreadDeg);
+  const cosT = Math.cos(tR), sinT = Math.sin(tR);
+  const rdx = sinT, rdy = cosT;
+  const omegaA = Math.atan2(-rdy, -rdx);
+  const rayLen = R * 2.2;
+  const raySrcX = cx - rdx*rayLen, raySrcY = surfY - rdy*rayLen;
+
+  // Surface fill
+  ctx.fillStyle = 'rgba(0,0,0,0.04)';
+  ctx.fillRect(cx - W*0.44, surfY, W*0.88, H - surfY);
+
+  // Unit sphere (upper half only)
+  ctx.beginPath();
+  ctx.arc(sCx, sCy, R, Math.PI, 0, false);
+  ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 1;
+  ctx.setLineDash([3,5]); ctx.stroke(); ctx.setLineDash([]);
+
+  // Surface line
+  ctx.beginPath(); ctx.moveTo(cx-W*0.44, surfY); ctx.lineTo(cx+W*0.44, surfY);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke();
+
+  // Normal
+  const normLen = R * 0.95;
+  ctx.beginPath(); ctx.moveTo(cx, surfY); ctx.lineTo(cx, surfY-normLen);
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1.2;
+  ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+  arrowHead(cx, surfY-normLen, -Math.PI/2, 'rgba(0,0,0,0.4)', 6);
+  ctx.fillStyle = '#333'; ctx.font = 'italic 11px serif';
+  ctx.fillText('n', cx+5, surfY-normLen+4);
+
+  // ω arrow
+  const omTipX = sCx + Math.cos(omegaA)*R*0.88;
+  const omTipY = sCy + Math.sin(omegaA)*R*0.88;
+  arrow(sCx, sCy, omTipX, omTipY, 'rgba(0,0,0,0.35)', 1.5, 'ω');
+
+  // dω cone
+  const coneR = R * 0.97;
+  ctx.beginPath(); ctx.moveTo(sCx, sCy);
+  for (let i=0;i<=40;i++){
+    const a=(omegaA-sR)+2*sR*(i/40);
+    ctx.lineTo(sCx+Math.cos(a)*coneR, sCy+Math.sin(a)*coneR);
+  }
+  ctx.closePath();
+  ctx.fillStyle='rgba(0,0,0,0.07)'; ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1.2; ctx.stroke();
+  ctx.fillStyle='#333'; ctx.font='10px Courier New';
+  ctx.fillText('dω', sCx+Math.cos(omegaA)*(coneR+13)-8, sCy+Math.sin(omegaA)*(coneR+13)+4);
+
+  // Ray bundle
+  const perpX=-rdy, perpY=rdx, bHW=R*0.085;
+  const s1x=raySrcX+perpX*bHW, s1y=raySrcY+perpY*bHW;
+  const s2x=raySrcX-perpX*bHW, s2y=raySrcY-perpY*bHW;
+  function hitSurf(sx,sy){ const t=(surfY-sy)/rdy; return sx+t*rdx; }
+  const h1x=hitSurf(s1x,s1y), h2x=hitSurf(s2x,s2y);
+  const fCx=(h1x+h2x)/2, fHW=Math.abs(h2x-h1x)/2;
+
+  // Irradiance glow
+  const glowW=fHW*2.8, glowA=Math.max(0.03,cosT*0.35);
+  const grad=ctx.createLinearGradient(fCx-glowW,surfY,fCx+glowW,surfY);
+  grad.addColorStop(0,'rgba(0,0,0,0)');
+  grad.addColorStop(0.3,`rgba(0,0,0,${glowA})`);
+  grad.addColorStop(0.5,`rgba(0,0,0,${glowA*1.4})`);
+  grad.addColorStop(0.7,`rgba(0,0,0,${glowA})`);
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=grad; ctx.fillRect(fCx-glowW, surfY-6, glowW*2, 12);
+
+  // Trapezoid
+  ctx.beginPath();
+  ctx.moveTo(s1x,s1y); ctx.lineTo(s2x,s2y); ctx.lineTo(h2x,surfY); ctx.lineTo(h1x,surfY);
+  ctx.closePath(); ctx.fillStyle='rgba(0,0,0,0.04)'; ctx.fill();
+  for(const[sx,sy,hx] of [[s1x,s1y,h1x],[s2x,s2y,h2x]]){
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(hx,surfY);
+    ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1;
+    ctx.setLineDash([4,3]); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // Central ray
+  arrow(raySrcX, raySrcY, cx, surfY, '#000', 1.8, null);
+
+  // θ arc
+  const tArcR=normLen*0.38, a1=Math.min(omegaA,-Math.PI/2), a2=Math.max(omegaA,-Math.PI/2);
+  if(thetaDeg>1){
+    ctx.beginPath(); ctx.arc(cx,surfY,tArcR,a1,a2);
+    ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1; ctx.stroke();
+    const tMidA=(a1+a2)/2;
+    ctx.fillStyle='#333'; ctx.font='italic 11px serif';
+    ctx.fillText('θ', cx+Math.cos(tMidA)*(tArcR+7), surfY+Math.sin(tMidA)*(tArcR+7)+4);
+  }
+
+  // dA bracket
+  const bY=surfY+10;
+  ctx.beginPath();
+  ctx.moveTo(h1x,bY); ctx.lineTo(h1x,bY+10);
+  ctx.moveTo(h1x,bY+5); ctx.lineTo(h2x,bY+5);
+  ctx.moveTo(h2x,bY); ctx.lineTo(h2x,bY+10);
+  ctx.strokeStyle='#000'; ctx.lineWidth=1.5; ctx.setLineDash([]); ctx.stroke();
+  ctx.fillStyle='#333'; ctx.font='10px Courier New';
+  ctx.fillText('dA', fCx-8, bY+22);
+
+  // dω bracket
+  const brkY=Math.min(s1y,s2y)-8;
+  ctx.beginPath();
+  ctx.moveTo(s1x,brkY+4); ctx.lineTo(s1x,brkY-4);
+  ctx.moveTo(s1x,brkY); ctx.lineTo(s2x,brkY);
+  ctx.moveTo(s2x,brkY+4); ctx.lineTo(s2x,brkY-4);
+  ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=1.2; ctx.stroke();
+  ctx.fillStyle='#555'; ctx.font='10px Courier New';
+  ctx.fillText('dω',(s1x+s2x)/2-8,brkY-8);
+
+  // Origin dot
+  ctx.beginPath(); ctx.arc(cx,surfY,3,0,Math.PI*2);
+  ctx.fillStyle='#333'; ctx.fill();
+
+  // Metrics
+  document.getElementById('mCos').textContent = cosT.toFixed(3);
+  document.getElementById('mRatio').textContent = (1/cosT).toFixed(3)+'×';
+  let msg;
+  if(thetaDeg<3) msg='θ = 0°: ray hits straight down. dA = dω — no stretching, maximum irradiance.';
+  else if(thetaDeg>75) msg=`Grazing angle: same dω spreads over ${(1/cosT).toFixed(1)}× more surface. Irradiance drops.`;
+  else msg=`cos θ = ${cosT.toFixed(3)}. The footprint dA is ${(1/cosT).toFixed(2)}× the size of dω.`;
+  document.getElementById('insight').textContent = msg;
+}
+
+function arrowHead(x,y,angle,color,size=8){
+  ctx.beginPath(); ctx.moveTo(x,y);
+  ctx.lineTo(x-size*Math.cos(angle-.38),y-size*Math.sin(angle-.38));
+  ctx.lineTo(x-size*Math.cos(angle+.38),y-size*Math.sin(angle+.38));
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+}
+function arrow(x1,y1,x2,y2,color,lw,label){
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+  ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.setLineDash([]); ctx.stroke();
+  const a=Math.atan2(y2-y1,x2-x1); arrowHead(x2,y2,a,color);
+  if(label){
+    const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+    ctx.fillStyle=color; ctx.font='italic 11px serif';
+    ctx.fillText(label,x2+dx/len*14-4,y2+dy/len*14+4);
+  }
+}
+
+document.getElementById('thSl').addEventListener('input',function(){
+  thetaDeg=+this.value; document.getElementById('thLbl').textContent=`${thetaDeg}°`; draw();
+});
+
+let dragging=false;
+function canvasPos(e){
+  const r=cv.getBoundingClientRect();
+  const ex=e.touches?e.touches[0].clientX:e.clientX;
+  const ey=e.touches?e.touches[0].clientY:e.clientY;
+  return{x:(ex-r.left)*(cv.width/r.width),y:(ey-r.top)*(cv.height/r.height)};
+}
+cv.addEventListener('mousedown',e=>{dragging=true;onDrag(e);});
+cv.addEventListener('touchstart',e=>{dragging=true;onDrag(e);},{passive:true});
+function onDrag(e){
+  if(!dragging)return;
+  const p=canvasPos(e); const{surfY,cx}=dims();
+  if(p.y<surfY){
+    const dx=p.x-cx, dy=surfY-p.y;
+    thetaDeg=Math.round(clamp(Math.abs(Math.atan2(dx,dy))*180/Math.PI,0,85));
+    document.getElementById('thSl').value=thetaDeg;
+    document.getElementById('thLbl').textContent=`${thetaDeg}°`;
+    draw();
+  }
+}
+window.addEventListener('mousemove',onDrag);
+window.addEventListener('touchmove',onDrag,{passive:true});
+window.addEventListener('mouseup',()=>dragging=false);
+window.addEventListener('touchend',()=>dragging=false);
+window.addEventListener('resize',()=>{
+  const w=cv.parentElement.clientWidth;
+  cv.width=w; cv.height=Math.min(w*0.6,380); draw();
+});
+const w=cv.parentElement?.clientWidth||600;
+cv.width=w; cv.height=Math.min(w*0.6,380); draw();
+</script>
+</body>
+</html>

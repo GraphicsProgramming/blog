@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jacobian Visualizer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #fff;
+    color: #333;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    padding: 12px;
+  }
+  canvas {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+    cursor: crosshair;
+    touch-action: none;
+    display: block;
+  }
+  .controls { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .ctrl-row { display: flex; align-items: center; gap: 10px; }
+  .ctrl-label { width: 80px; font-size: 13px; color: #333; font-family: 'Courier New', monospace; }
+  input[type=range] {
+    flex: 1; -webkit-appearance: none; height: 2px;
+    background: #000; border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px;
+    border-radius: 50%; background: #000; cursor: pointer;
+  }
+  .val { font-family: 'Courier New', monospace; font-weight: 600; color: #000; width: 32px; font-size: 13px; }
+  .metrics {
+    margin-top: 8px; display: grid;
+    grid-template-columns: 1fr 1fr; gap: 4px 16px;
+    font-size: 12px; color: #555; font-family: 'Courier New', monospace;
+  }
+  .insight {
+    margin-top: 8px; font-size: 12px; color: #555;
+    line-height: 1.5; border-left: 2px solid #000; padding-left: 8px;
+  }
+  .hint { font-size: 11px; color: #999; margin-top: 6px; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="controls">
+  <div class="ctrl-row">
+    <span class="ctrl-label">i (incident)</span>
+    <input type="range" id="iSl" min="0" max="85" value="30">
+    <span class="val" id="iLbl">30°</span>
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">o (outgoing)</span>
+    <input type="range" id="oSl" min="0" max="85" value="45">
+    <span class="val" id="oLbl">45°</span>
+  </div>
+</div>
+<div class="metrics">
+  <span>‖h̃‖ = <strong id="mHN">—</strong></span>
+  <span>i·ĥ = <strong id="mID">—</strong></span>
+  <span>4(i·ĥ)² = <strong id="mH2">—</strong></span>
+  <span>Jacobian = <strong id="mJac">—</strong></span>
+</div>
+<p class="insight" id="insight"></p>
+<p class="hint">drag arrowheads or use sliders</p>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let iDeg=30, oDeg=45;
+const MAX_DEG=85;
+const toRad=d=>d*Math.PI/180;
+const toDeg=r=>r*180/Math.PI;
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+
+function dims(){
+  const R=Math.min(cv.width,cv.height)*0.26;
+  return{cx:cv.width/2, cy:cv.height*0.65, R};
+}
+function getVecs(){
+  const iA=-Math.PI/2-toRad(iDeg), oA=-Math.PI/2+toRad(oDeg);
+  const ix=Math.cos(iA),iy=Math.sin(iA),ox=Math.cos(oA),oy=Math.sin(oA);
+  const htx=ix+ox,hty=iy+oy,htLen=Math.sqrt(htx*htx+hty*hty);
+  const safe=htLen<0.001;
+  const hhx=safe?0:htx/htLen, hhy=safe?-1:hty/htLen;
+  const hA=Math.atan2(hhy,hhx);
+  const idoth=Math.max(0.001,ix*hhx+iy*hhy);
+  const jacobian=1/(4*idoth*idoth);
+  return{iA,oA,ix,iy,ox,oy,htx,hty,htLen,hhx,hhy,hA,idoth,jacobian,safe};
+}
+
+// Colors matching site (black/grey on white)
+const C_I   = '#c0392b';   // red for i
+const C_O   = '#27ae60';   // green for o
+const C_H   = '#2c3e50';   // dark for ĥ
+const C_HT  = '#8e44ad';   // purple for h̃
+const C_DWO = 'rgba(39,174,96,0.55)';
+const C_DWH = 'rgba(44,62,80,0.55)';
+
+function draw(){
+  const{W,H}={W:cv.width,H:cv.height};
+  const{cx,cy,R}=dims();
+  const{iA,oA,ix,iy,ox,oy,htx,hty,htLen,hhx,hhy,hA,idoth,jacobian,safe}=getVecs();
+  ctx.clearRect(0,0,W,H);
+
+  const iTipX=cx+ix*R, iTipY=cy+iy*R;
+  const oTipX=cx+ox*R, oTipY=cy+oy*R;
+  const htTipX=cx+htx*R, htTipY=cy+hty*R;
+  const hhTipX=cx+hhx*R, hhTipY=cy+hhy*R;
+
+  // Unit sphere
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
+  ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1;
+  ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+
+  // Second circle centred at iTip
+  ctx.beginPath(); ctx.arc(iTipX,iTipY,R,0,Math.PI*2);
+  ctx.strokeStyle='rgba(33,33,33,0.4)'; ctx.lineWidth=1;
+  ctx.setLineDash([3,5]); ctx.stroke(); ctx.setLineDash([]);
+
+  // Surface line
+  ctx.beginPath(); ctx.moveTo(cx-R*1.7,cy); ctx.lineTo(cx+R*1.7,cy);
+  ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1.5; ctx.setLineDash([]); ctx.stroke();
+
+  // Normal
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx,cy-R*0.55);
+  ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1;
+  ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+  arrowHead(cx,cy-R*0.55,-Math.PI/2,'rgba(0,0,0,0.35)',6);
+  ctx.fillStyle='#555'; ctx.font='italic 11px serif';
+  ctx.fillText('n',cx+5,cy-R*0.52);
+
+  if(!safe){
+    const dA=0.10, dAh=dA*Math.sqrt(jacobian);
+    // dωₕ patch
+    patch(cx,cy,R,hA,dAh,'rgba(44,62,80,0.4)','rgba(44,62,80,0.7)');
+    // dωₒ patch at iTip
+    patchAt(iTipX,iTipY,R,oA,dA,'rgba(39,174,96,0.4)','rgba(39,174,96,0.7)');
+    // Projection lines
+    for(const sign of[-1,1]){
+      const ex1=iTipX+Math.cos(oA+sign*dA)*R, ey1=iTipY+Math.sin(oA+sign*dA)*R;
+      const ex2=cx+Math.cos(hA+sign*dAh)*R,   ey2=cy+Math.sin(hA+sign*dAh)*R;
+      ctx.beginPath(); ctx.moveTo(ex1,ey1); ctx.lineTo(ex2,ey2);
+      ctx.strokeStyle='rgba(0,0,0,0.45)'; ctx.lineWidth=1.8;
+      ctx.setLineDash([5,4]); ctx.stroke();
+      ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=3;
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    // Labels
+    ctx.font='10px Courier New';
+    ctx.fillStyle='rgba(39,174,96,0.9)';
+    ctx.fillText('dωₒ',iTipX+Math.cos(oA)*(R+13)-8,iTipY+Math.sin(oA)*(R+13));
+    ctx.fillStyle='rgba(44,62,80,0.9)';
+    ctx.fillText('dωₕ',cx+Math.cos(hA)*(R+13)-4,cy+Math.sin(hA)*(R+13)-8);
+  }
+
+  // Ghost o from origin
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(oTipX,oTipY);
+  ctx.strokeStyle='rgba(39,174,96,0.25)'; ctx.lineWidth=1.5;
+  ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+  arrowHead(oTipX,oTipY,oA,'rgba(39,174,96,0.25)');
+  ctx.fillStyle='rgba(39,174,96,0.35)'; ctx.font='italic 11px serif';
+  ctx.fillText('o',oTipX+8,oTipY+4);
+
+  // i vector
+  arrow(cx,cy,iTipX,iTipY,C_I,2.5,'i');
+  // Translated o
+  arrow(iTipX,iTipY,htTipX,htTipY,C_O,2.5,null);
+  ctx.fillStyle=C_O; ctx.font='italic bold 12px serif';
+  ctx.fillText('o',(iTipX+htTipX)/2+8,(iTipY+htTipY)/2-4);
+  // ĥ
+  if(!safe) arrow(cx,cy,hhTipX,hhTipY,C_H,2.5,'ĥ');
+
+  // h̃ tip
+  ctx.beginPath(); ctx.arc(htTipX,htTipY,5,0,Math.PI*2);
+  ctx.fillStyle=C_HT; ctx.fill();
+  ctx.fillStyle=C_HT; ctx.font='bold 12px serif';
+  ctx.fillText('h̃',htTipX+7,htTipY+4);
+
+  // Origin dot
+  ctx.beginPath(); ctx.arc(cx,cy,3,0,Math.PI*2);
+  ctx.fillStyle='#333'; ctx.fill();
+
+  // Metrics
+  document.getElementById('mHN').textContent=htLen.toFixed(3);
+  document.getElementById('mID').textContent=idoth.toFixed(3);
+  document.getElementById('mH2').textContent=(4*idoth*idoth).toFixed(3);
+  document.getElementById('mJac').textContent=safe?'∞':jacobian.toFixed(3);
+
+  const sum=iDeg+oDeg;
+  let msg;
+  if(safe) msg='Degenerate: i and o are opposite — half-vector undefined.';
+  else if(sum<20) msg=`‖h̃‖ ≈ ${htLen.toFixed(2)} (near 2). Strong compression — dωₒ maps to a tiny dωₕ.`;
+  else if(sum>140) msg=`‖h̃‖ = ${htLen.toFixed(2)} (small). Less compression — dωₕ is relatively large.`;
+  else msg=`‖h̃‖ = ${htLen.toFixed(2)}. Solid angle shrinks by 1/‖h̃‖² = ${(1/htLen/htLen).toFixed(3)} — that's the Jacobian.`;
+  document.getElementById('insight').textContent=msg;
+}
+
+function patch(cx,cy,r,ca,hw,fill,stroke){
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,ca-hw,ca+hw);
+  ctx.closePath(); ctx.fillStyle=fill; ctx.fill();
+  ctx.strokeStyle=stroke; ctx.lineWidth=1.2; ctx.stroke();
+}
+function patchAt(bx,by,r,ca,hw,fill,stroke){
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.arc(bx,by,r,ca-hw,ca+hw);
+  ctx.closePath(); ctx.fillStyle=fill; ctx.fill();
+  ctx.strokeStyle=stroke; ctx.lineWidth=1.2; ctx.stroke();
+}
+function arrowHead(x,y,angle,color,size=9){
+  ctx.beginPath(); ctx.moveTo(x,y);
+  ctx.lineTo(x-size*Math.cos(angle-.38),y-size*Math.sin(angle-.38));
+  ctx.lineTo(x-size*Math.cos(angle+.38),y-size*Math.sin(angle+.38));
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+}
+function arrow(x1,y1,x2,y2,color,lw,label){
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+  ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.setLineDash([]); ctx.stroke();
+  const a=Math.atan2(y2-y1,x2-x1); arrowHead(x2,y2,a,color);
+  if(label){
+    const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+    ctx.fillStyle=color; ctx.font='bold italic 12px serif';
+    ctx.fillText(label,x2+dx/len*15-4,y2+dy/len*15+5);
+  }
+}
+
+document.getElementById('iSl').addEventListener('input',function(){
+  iDeg=clamp(+this.value,0,MAX_DEG);
+  document.getElementById('iLbl').textContent=`${iDeg}°`; draw();
+});
+document.getElementById('oSl').addEventListener('input',function(){
+  oDeg=clamp(+this.value,0,MAX_DEG);
+  document.getElementById('oLbl').textContent=`${oDeg}°`; draw();
+});
+
+let drag=null;
+function tipPos(which){
+  const{cx,cy,R}=dims(); const{iA,oA}=getVecs();
+  const a=which==='i'?iA:oA;
+  return{x:cx+Math.cos(a)*R,y:cy+Math.sin(a)*R};
+}
+function canvasPos(e){
+  const r=cv.getBoundingClientRect();
+  const ex=e.touches?e.touches[0].clientX:e.clientX;
+  const ey=e.touches?e.touches[0].clientY:e.clientY;
+  return{x:(ex-r.left)*(cv.width/r.width),y:(ey-r.top)*(cv.height/r.height)};
+}
+cv.addEventListener('mousedown',e=>{
+  const p=canvasPos(e),it=tipPos('i'),ot=tipPos('o');
+  if(Math.hypot(p.x-it.x,p.y-it.y)<22)drag='i';
+  else if(Math.hypot(p.x-ot.x,p.y-ot.y)<22)drag='o';
+});
+cv.addEventListener('touchstart',e=>{
+  const p=canvasPos(e),it=tipPos('i'),ot=tipPos('o');
+  if(Math.hypot(p.x-it.x,p.y-it.y)<28)drag='i';
+  else if(Math.hypot(p.x-ot.x,p.y-ot.y)<28)drag='o';
+},{passive:true});
+function onMove(e){
+  if(!drag)return;
+  const p=canvasPos(e); const{cx,cy}=dims();
+  const fromNormal=toDeg(Math.atan2(p.x-cx,-(p.y-cy)));
+  if(drag==='i'){iDeg=clamp(-fromNormal,0,MAX_DEG);document.getElementById('iSl').value=Math.round(iDeg);document.getElementById('iLbl').textContent=`${Math.round(iDeg)}°`;}
+  else{oDeg=clamp(fromNormal,0,MAX_DEG);document.getElementById('oSl').value=Math.round(oDeg);document.getElementById('oLbl').textContent=`${Math.round(oDeg)}°`;}
+  draw();
+}
+window.addEventListener('mousemove',onMove);
+window.addEventListener('touchmove',onMove,{passive:true});
+window.addEventListener('mouseup',()=>drag=null);
+window.addEventListener('touchend',()=>drag=null);
+window.addEventListener('resize',()=>{
+  const w=cv.parentElement.clientWidth;
+  cv.width=w; cv.height=Math.min(w*0.75,460); draw();
+});
+const w=cv.parentElement?.clientWidth||600;
+cv.width=w; cv.height=Math.min(w*0.75,460); draw();
+</script>
+</body>
+</html>
