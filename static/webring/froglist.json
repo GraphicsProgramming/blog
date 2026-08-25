@@ -130,5 +130,11 @@
   "url": "https://saswatjk.github.io/personal-site/index.html",
   "displayName": "Saswat Jung Khadka",
   "description": "Personal site with my projects and my blog, which includes graphics and other things."
+  },
+  {
+    "name": "barrettw",
+    "url": "https://barrettw.net/",
+    "displayName": "Barrett Wise",
+    "description": "Personal portfolio of Barrett Wise — software engineer and graphics programming enthusiast."
   }
 ]
