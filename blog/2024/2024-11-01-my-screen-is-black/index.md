@@ -75,7 +75,7 @@ You most likely have no index buffer bound, or it is not associated with the cur
 - You might have not set the vertex count variable and as a result it contains an uninitialized value, assuming you used a language like C or C++.
 
 ### glGetUniformLocation returns -1 even though the variable definitely contributes to the shader's output
-Although everything is present in the shader file, and isnt optimized away by the shader compiler.
+Although everything is present in the shader file, and isn't optimized away by the shader compiler.
 No compile/link errors either. Well, you were probably using rust and tried getting the location like this
 ```rs
 let location = glGetUniformLocation(shader_program2, "triangle_offset".as_bytes().as_ptr().cast());
