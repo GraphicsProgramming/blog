@@ -84,6 +84,7 @@ rather than
 ```rs
 let location = glGetUniformLocation(shader_program2, CString::new("triangle_offset"));
 ```
+In Rust, string literals are not guaranteed to be null-terminated, but `CString`s are. `glGetUniformLocation` (and probably any other function that takes a string in OpenGL) expects a null-terminated string. Using a non-null-terminated string here will invoke undefined behavior as OpenGL will read past the end of the string.
 
 ### Textures/Triangles are black
 
