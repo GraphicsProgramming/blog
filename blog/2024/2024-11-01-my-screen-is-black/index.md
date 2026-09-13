@@ -76,7 +76,7 @@ You most likely have no index buffer bound, or it is not associated with the cur
 
 ### glGetUniformLocation returns -1 even though the variable definitely contributes to the shader's output
 Although everything is present in the shader file, and isn't optimized away by the shader compiler.
-No compile/link errors either. Well, you were probably using rust and tried getting the location like this
+No compile/link errors either. Well, you were probably using Rust and tried getting the location like this
 ```rs
 let location = glGetUniformLocation(shader_program2, "triangle_offset".as_bytes().as_ptr().cast());
 ```
