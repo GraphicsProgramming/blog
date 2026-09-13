@@ -74,7 +74,7 @@ You most likely have no index buffer bound, or it is not associated with the cur
 - You're probably drawing more primitives than you have in your vertex buffer, check the arguments of your `glDrawArrays` call.
 - You might have not set the vertex count variable and as a result it contains an uninitialized value, assuming you used a language like C or C++.
 
-### glGetUniformLocation reports -1
+### glGetUniformLocation returns -1 even though the variable definitely contributes to the shader's output
 Although everything is present in the shader file, and isnt optimized away by the shader compiler.
 No compile/link errors either. Well, you were probably using rust and tried getting the location like this
 ```rs
