@@ -74,6 +74,18 @@ You most likely have no index buffer bound, or it is not associated with the cur
 - You're probably drawing more primitives than you have in your vertex buffer, check the arguments of your `glDrawArrays` call.
 - You might have not set the vertex count variable and as a result it contains an uninitialized value, assuming you used a language like C or C++.
 
+### glGetUniformLocation returns -1 even though the variable definitely contributes to the shader's output
+Although everything is present in the shader file, and isn't optimized away by the shader compiler.
+No compile/link errors either. Well, you were probably using Rust and tried getting the location like this
+```rs
+let location = glGetUniformLocation(shader_program2, "triangle_offset".as_bytes().as_ptr().cast());
+```
+rather than
+```rs
+let location = glGetUniformLocation(shader_program2, CString::new("triangle_offset"));
+```
+In Rust, string literals are not guaranteed to be null-terminated, but `CString`s are. `glGetUniformLocation` (and probably any other function that takes a string in OpenGL) expects a null-terminated string. Using a non-null-terminated string here will invoke undefined behavior as OpenGL will read past the end of the string.
+
 ### Textures/Triangles are black
 
 Did you forget to bind the texture in question?
