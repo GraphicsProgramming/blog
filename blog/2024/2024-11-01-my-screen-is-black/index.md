@@ -23,7 +23,7 @@ There is also a plugin called [Where is my Draw?](https://github.com/baldurk/ren
 
 Set up `glDebugMessageCallback`. See [here](https://deccer.github.io/OpenGL-Getting-Started/02-debugging/02-debug-callback/) for example code.
 
-If you use `glGetError` with or without macros like `GLCALL` or `GLCHECK`, or you rolled your own error checking functions, get rid of them. `glDebugMessageCallback` will replace them, while avoiding any subtle bugs that may have been caused by error checking copy-paste.
+If you use `glGetError` with or without macros like `GLCALL` or `GLCHECK`, make sure (your macro is setup properly that) it calls `glGetError` in a while loop until no error is left on the error stack.
 
 Always check that both shader compilation *and* linking were successful. Search for `glGetShaderiv` and `glGetProgramiv` for more on compile and link status.
 
