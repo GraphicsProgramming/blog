@@ -10,9 +10,11 @@ last_update:
     author: Jaker
 ---
 
-This is a copy of a near-final version of the article we published in GPU Zen 3, translated from LaTeX to Markdown.
+This is a copy of a near-final version of the article we published in [GPU Zen 3](https://gpuzen.blogspot.com/2024/11/gpu-zen-3-cover-and-toc.html), translated from LaTeX to Markdown.
 
 <!-- truncate -->
+
+The code associated with this article can be found in [Timberdoodle](https://github.com/Sunset-Flock/Timberdoodle). In developing the technique, we have also published implementations in [Frogfood](https://github.com/JuanDiegoMontoya/Frogfood) (OpenGL/Vulkan, [article](https://github.com/JuanDiegoMontoya/Frogfood/wiki/Virtual-Shadow-Maps)) and [StratusGFX](https://github.com/KTStephano/StratusGFX) (OpenGL, [article](https://ktstephano.github.io/rendering/stratusgfx/svsm)).
 
 ## 1 Introduction
 
