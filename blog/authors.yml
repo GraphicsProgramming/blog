@@ -95,3 +95,27 @@ saswatjk:
   socials:
     github: SaswatJK
     site: https://saswatjk.github.io/personal-site/index.html
+
+saky:
+  name: Matěj Sakmary
+  title: Elite Frog Runner
+  url: https://github.com/MatejSakmary
+  image_url: https://avatars.githubusercontent.com/u/20972446?v=4
+  socials:
+    github: MatejSakmary
+
+jstephano:
+  name: Justin Hall
+  title: Rendering Wayfinder
+  url: https://github.com/KTStephano
+  image_url: https://avatars.githubusercontent.com/u/8399235?v=4
+  socials:
+    github: KTStephano
+
+lvstri:
+  name: LVSTRI
+  title: GPU Whisperer
+  url: https://github.com/lvstri
+  image_url: https://avatars.githubusercontent.com/u/129222136?v=4
+  socials:
+    github: LVSTRI
