@@ -1,12 +1,12 @@
 ---
 title: 'Virtual Shadow Maps'
 slug: 'virtual-shadow-maps'
-description: 'An ancient technique revitalized with 203rd decade technology.'
+description: 'A memory-efficient shadow mapping technique that uses virtual texturing.'
 date: '2026-10-12'
 authors: [saky, jaker, jstephano, lvstri]
 tags: ['article', 'shadows', 'shadow-mapping', 'techniques']
 last_update:
-    date: '2026-10-12'
+    date: '2026-10-14'
     author: Jaker
 ---
 
@@ -14,7 +14,7 @@ This is a copy of a near-final version of the article we published in [GPU Zen 3
 
 <!-- truncate -->
 
-The code associated with this article can be found in [Timberdoodle](https://github.com/Sunset-Flock/Timberdoodle). In developing the technique, we have also published implementations in [Frogfood](https://github.com/JuanDiegoMontoya/Frogfood) (OpenGL/Vulkan, [article](https://github.com/JuanDiegoMontoya/Frogfood/wiki/Virtual-Shadow-Maps)) and [StratusGFX](https://github.com/KTStephano/StratusGFX) (OpenGL, [article](https://ktstephano.github.io/rendering/stratusgfx/svsm)).
+The code associated with this article can be found in [Timberdoodle](https://github.com/Sunset-Flock/Timberdoodle) (Vulkan). In developing the technique, we have also published implementations in [Frogfood](https://github.com/JuanDiegoMontoya/Frogfood) (OpenGL/Vulkan, [article](https://github.com/JuanDiegoMontoya/Frogfood/wiki/Virtual-Shadow-Maps)) and [StratusGFX](https://github.com/KTStephano/StratusGFX) (OpenGL, [article](https://ktstephano.github.io/rendering/stratusgfx/svsm)).
 
 ## 1 Introduction
 
